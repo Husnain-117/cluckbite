@@ -14,6 +14,8 @@ import OrderSuccess from "./pages/OrderSuccess";
 import TrackOrder from "./pages/TrackOrder";
 import Orders from "./pages/Orders";
 import NotFound from "./pages/NotFound";
+import ManagerLogin from "./pages/manager/ManagerLogin";
+import ManagerDashboard from "./pages/manager/ManagerDashboard";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="/order-success" element={<OrderSuccess />} />
               <Route path="/track-order" element={<TrackOrder />} />
               <Route path="/orders" element={<Orders />} />
+              <Route path="/manager/login" element={<ManagerLogin />} />
+              <Route path="/manager" element={<ManagerDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
