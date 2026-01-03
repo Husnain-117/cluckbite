@@ -14,44 +14,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
+          allergens: string[] | null
           category: string
+          category_id: string | null
+          cost_price: number | null
           created_at: string
           description: string | null
           id: string
           image_url: string | null
           is_available: boolean | null
           is_featured: boolean | null
+          low_stock_threshold: number | null
+          nutritional_info: Json | null
+          preparation_time: number | null
           price: number
+          profit_margin: number | null
+          sku: string | null
           stock_quantity: number | null
           title: string
         }
         Insert: {
+          allergens?: string[] | null
           category: string
+          category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
           is_available?: boolean | null
           is_featured?: boolean | null
+          low_stock_threshold?: number | null
+          nutritional_info?: Json | null
+          preparation_time?: number | null
           price: number
+          profit_margin?: number | null
+          sku?: string | null
           stock_quantity?: number | null
           title: string
         }
         Update: {
+          allergens?: string[] | null
           category?: string
+          category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
           is_available?: boolean | null
           is_featured?: boolean | null
+          low_stock_threshold?: number | null
+          nutritional_info?: Json | null
+          preparation_time?: number | null
           price?: number
+          profit_margin?: number | null
+          sku?: string | null
           stock_quantity?: number | null
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -285,6 +344,95 @@ export type Database = {
         }
         Relationships: []
       }
+      revenue_analytics: {
+        Row: {
+          average_order_value: number | null
+          cancelled_orders: number | null
+          completed_orders: number | null
+          created_at: string
+          date: string
+          id: string
+          payment_methods: Json | null
+          profit: number | null
+          top_selling_items: Json | null
+          total_cost: number | null
+          total_orders: number | null
+          total_revenue: number | null
+        }
+        Insert: {
+          average_order_value?: number | null
+          cancelled_orders?: number | null
+          completed_orders?: number | null
+          created_at?: string
+          date: string
+          id?: string
+          payment_methods?: Json | null
+          profit?: number | null
+          top_selling_items?: Json | null
+          total_cost?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+        }
+        Update: {
+          average_order_value?: number | null
+          cancelled_orders?: number | null
+          completed_orders?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          payment_methods?: Json | null
+          profit?: number | null
+          top_selling_items?: Json | null
+          total_cost?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          menu_item_id: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          new_stock: number
+          notes: string | null
+          performed_by: string | null
+          previous_stock: number
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          menu_item_id: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          new_stock: number
+          notes?: string | null
+          performed_by?: string | null
+          previous_stock: number
+          quantity: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          menu_item_id?: string
+          movement_type?: Database["public"]["Enums"]["movement_type"]
+          new_stock?: number
+          notes?: string | null
+          performed_by?: string | null
+          previous_stock?: number
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -321,6 +469,7 @@ export type Database = {
     }
     Enums: {
       app_role: "customer" | "manager" | "admin"
+      movement_type: "purchase" | "sale" | "adjustment" | "waste"
       notification_recipient: "admin" | "manager"
       notification_type: "new_order" | "status_update" | "system"
       order_status:
@@ -460,6 +609,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["customer", "manager", "admin"],
+      movement_type: ["purchase", "sale", "adjustment", "waste"],
       notification_recipient: ["admin", "manager"],
       notification_type: ["new_order", "status_update", "system"],
       order_status: [
