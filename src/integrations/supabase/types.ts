@@ -55,26 +55,38 @@ export type Database = {
       }
       notifications: {
         Row: {
+          action_url: string | null
           created_at: string
           id: string
           is_read: boolean | null
           message: string
+          notification_type:
+            | Database["public"]["Enums"]["notification_type"]
+            | null
           order_id: string | null
           recipient_role: Database["public"]["Enums"]["notification_recipient"]
         }
         Insert: {
+          action_url?: string | null
           created_at?: string
           id?: string
           is_read?: boolean | null
           message: string
+          notification_type?:
+            | Database["public"]["Enums"]["notification_type"]
+            | null
           order_id?: string | null
           recipient_role: Database["public"]["Enums"]["notification_recipient"]
         }
         Update: {
+          action_url?: string | null
           created_at?: string
           id?: string
           is_read?: boolean | null
           message?: string
+          notification_type?:
+            | Database["public"]["Enums"]["notification_type"]
+            | null
           order_id?: string | null
           recipient_role?: Database["public"]["Enums"]["notification_recipient"]
         }
@@ -133,6 +145,41 @@ export type Database = {
           },
         ]
       }
+      order_status_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string
+          status: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          status: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           amount_due_cod: number | null
@@ -146,6 +193,7 @@ export type Database = {
           distance_km: number | null
           id: string
           order_number: string
+          order_source: string | null
           order_status: Database["public"]["Enums"]["order_status"] | null
           order_type: Database["public"]["Enums"]["order_type"]
           payment_method: string
@@ -169,6 +217,7 @@ export type Database = {
           distance_km?: number | null
           id?: string
           order_number: string
+          order_source?: string | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
           order_type: Database["public"]["Enums"]["order_type"]
           payment_method: string
@@ -192,6 +241,7 @@ export type Database = {
           distance_km?: number | null
           id?: string
           order_number?: string
+          order_source?: string | null
           order_status?: Database["public"]["Enums"]["order_status"] | null
           order_type?: Database["public"]["Enums"]["order_type"]
           payment_method?: string
@@ -235,15 +285,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "customer" | "manager" | "admin"
       notification_recipient: "admin" | "manager"
+      notification_type: "new_order" | "status_update" | "system"
       order_status:
         | "pending"
         | "approved"
@@ -380,7 +459,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["customer", "manager", "admin"],
       notification_recipient: ["admin", "manager"],
+      notification_type: ["new_order", "status_update", "system"],
       order_status: [
         "pending",
         "approved",
