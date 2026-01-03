@@ -40,9 +40,11 @@ const Footer = () => {
           {/* Brand & Newsletter */}
           <div className="lg:col-span-1">
             <Link to="/" className="inline-block mb-6">
-              <span className="text-2xl font-heading font-bold gradient-text">
-                Cluck Bite
-              </span>
+              <img 
+                src="/favicon.png" 
+                alt="Cluck Bite" 
+                className="h-16 w-auto"
+              />
             </Link>
             <p className="text-muted-foreground mb-6">
               Serving up the crispiest, juiciest chicken since day one. 

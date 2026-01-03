@@ -139,9 +139,11 @@ const Navbar = () => {
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <span className="text-2xl font-heading font-bold gradient-text">
-            Cluck Bite
-          </span>
+          <img 
+            src="/favicon.png" 
+            alt="Cluck Bite" 
+            className="h-10 w-auto"
+          />
         </Link>
 
         {/* Desktop Navigation */}

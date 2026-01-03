@@ -287,7 +287,7 @@ const AdminSettings = () => {
                       Connected
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">Lovable Cloud Database</p>
+                  <p className="text-sm text-muted-foreground">Cluck Bite Cloud Database</p>
                 </div>
                 <div className="p-4 bg-muted rounded-xl">
                   <div className="flex items-center justify-between mb-2">
