@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Truck, Store, MapPin, Mail, ArrowRight, X } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Truck, Store, MapPin, Phone, ArrowRight, User, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 // Restaurant location (example coordinates - replace with actual)
@@ -23,8 +24,9 @@ interface OrderTypeModalProps {
 const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
   const navigate = useNavigate();
   const { setDeliveryInfo } = useCart();
-  const [step, setStep] = useState<'select' | 'delivery-details'>('select');
-  const [email, setEmail] = useState('');
+  const { user } = useAuth();
+  const [step, setStep] = useState<'select' | 'auth-choice' | 'delivery-details'>('select');
+  const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [pinLocation, setPinLocation] = useState('');
   const [distance, setDistance] = useState<number | null>(null);
@@ -59,21 +61,35 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
   };
 
   const handleSelectDelivery = () => {
+    // If user is already logged in, skip auth choice
+    if (user) {
+      setStep('delivery-details');
+    } else {
+      setStep('auth-choice');
+    }
+  };
+
+  const handleContinueAsGuest = () => {
     setStep('delivery-details');
+  };
+
+  const handleLoginRedirect = () => {
+    onClose();
+    navigate('/auth?redirect=/menu');
   };
 
   const handleSelectCollection = () => {
     setDeliveryInfo({
       type: 'collection',
-      email: email || undefined,
+      phone: phone || undefined,
     });
     onClose();
     navigate('/menu');
   };
 
   const handleProceedToMenu = () => {
-    if (!email.trim()) {
-      toast.error('Please enter your email address');
+    if (!phone.trim()) {
+      toast.error('Please enter your phone number');
       return;
     }
     if (!address.trim()) {
@@ -87,7 +103,7 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
 
     setDeliveryInfo({
       type: 'delivery',
-      email,
+      phone,
       address,
       pinLocation,
       distance,
@@ -99,7 +115,7 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
 
   const handleClose = () => {
     setStep('select');
-    setEmail('');
+    setPhone('');
     setAddress('');
     setPinLocation('');
     setDistance(null);
@@ -112,7 +128,8 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
       <DialogContent className="sm:max-w-lg bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-2xl font-heading text-center">
-            {step === 'select' ? 'How would you like your order?' : 'Delivery Details'}
+            {step === 'select' ? 'How would you like your order?' : 
+             step === 'auth-choice' ? 'Continue as Guest or Login?' : 'Delivery Details'}
           </DialogTitle>
         </DialogHeader>
 
@@ -146,20 +163,64 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
               </p>
             </button>
           </div>
+        ) : step === 'auth-choice' ? (
+          <div className="py-6 space-y-4">
+            <p className="text-center text-muted-foreground mb-6">
+              Would you like to login for a faster checkout experience or continue as a guest?
+            </p>
+            
+            {/* Guest Option */}
+            <button
+              onClick={handleContinueAsGuest}
+              className="w-full group card-elevated p-4 flex items-center gap-4 hover:border-primary transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                <User className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+              </div>
+              <div className="text-left flex-1">
+                <h3 className="font-semibold">Continue as Guest</h3>
+                <p className="text-sm text-muted-foreground">Proceed without creating an account</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+            </button>
+
+            {/* Login Option */}
+            <button
+              onClick={handleLoginRedirect}
+              className="w-full group card-elevated p-4 flex items-center gap-4 hover:border-secondary transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center group-hover:bg-secondary/10 transition-colors">
+                <UserPlus className="h-6 w-6 text-muted-foreground group-hover:text-secondary" />
+              </div>
+              <div className="text-left flex-1">
+                <h3 className="font-semibold">Login / Sign Up</h3>
+                <p className="text-sm text-muted-foreground">Save your details for future orders</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-secondary" />
+            </button>
+
+            <Button
+              variant="ghost"
+              onClick={() => setStep('select')}
+              className="w-full mt-4"
+            >
+              Back
+            </Button>
+          </div>
         ) : (
           <div className="py-6 space-y-6">
-            {/* Email */}
+            {/* Phone Number */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-primary" />
-                Email Address *
+              <Label htmlFor="phone" className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-primary" />
+                Phone Number *
               </Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+44 123 456 7890"
                 className="input-styled"
               />
             </div>
@@ -226,7 +287,7 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep('select')}
+                onClick={() => user ? setStep('select') : setStep('auth-choice')}
                 className="flex-1"
               >
                 Back

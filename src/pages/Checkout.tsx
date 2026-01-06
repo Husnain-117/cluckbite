@@ -14,7 +14,7 @@ import { z } from 'zod';
 
 const customerSchema = z.object({
   name: z.string().min(2, 'Name is required'),
-  email: z.string().email('Valid email is required'),
+  email: z.string().email('Valid email is required').optional().or(z.literal('')),
   phone: z.string().min(10, 'Valid phone number is required'),
 });
 
@@ -30,14 +30,15 @@ const Checkout = () => {
   
   // Customer Info
   const [customerName, setCustomerName] = useState(user?.user_metadata?.full_name || '');
-  const [customerEmail, setCustomerEmail] = useState(user?.email || deliveryInfo?.email || '');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState(user?.email || '');
+  const [customerPhone, setCustomerPhone] = useState(deliveryInfo?.phone || '');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
-  const [splitAmount, setSplitAmount] = useState('');
+  const [splitCashAmount, setSplitCashAmount] = useState('');
+  const [splitCardAmount, setSplitCardAmount] = useState('');
 
   const generateOrderNumber = () => {
     const date = new Date();
@@ -85,9 +86,10 @@ const Checkout = () => {
     } else if (paymentMethod === 'cod') {
       amountDueCod = total;
     } else if (paymentMethod === 'split') {
-      const splitValue = parseFloat(splitAmount) || 0;
-      amountPaidOnline = Math.min(splitValue, total);
-      amountDueCod = total - amountPaidOnline;
+      const cashValue = parseFloat(splitCashAmount) || 0;
+      const cardValue = parseFloat(splitCardAmount) || 0;
+      amountPaidOnline = Math.min(cardValue, total);
+      amountDueCod = Math.min(cashValue, total - amountPaidOnline);
     }
 
     return { amountPaidOnline, amountDueCod };
@@ -306,7 +308,7 @@ const Checkout = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
+                <Label htmlFor="email">Email Address (Optional)</Label>
                 <Input
                   id="email"
                   type="email"
@@ -372,7 +374,7 @@ const Checkout = () => {
                 </label>
               </div>
 
-              {/* Cash on Delivery */}
+              {/* Pay Later */}
               <div
                 className={`card-elevated p-4 cursor-pointer transition-all ${
                   paymentMethod === 'cod' ? 'border-primary ring-2 ring-primary/20' : ''
@@ -382,7 +384,7 @@ const Checkout = () => {
                   <RadioGroupItem value="cod" id="cod" />
                   <Banknote className="h-6 w-6 text-green-500" />
                   <div className="flex-1">
-                    <p className="font-semibold">Cash on Delivery</p>
+                    <p className="font-semibold">Pay Later</p>
                     <p className="text-sm text-muted-foreground">Pay when you receive your order</p>
                   </div>
                   <span className="font-bold text-secondary">${total.toFixed(2)}</span>
@@ -401,27 +403,65 @@ const Checkout = () => {
                   <div className="flex-1">
                     <p className="font-semibold">Split Payment</p>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Pay part now, rest on delivery
+                      Pay part by card, part in cash
                     </p>
                     {paymentMethod === 'split' && (
-                      <div className="space-y-3 animate-fade-in">
-                        <div>
-                          <Label htmlFor="splitAmount" className="text-sm">Pay now ($)</Label>
-                          <Input
-                            id="splitAmount"
-                            type="number"
-                            min="0"
-                            max={total}
-                            step="0.01"
-                            value={splitAmount}
-                            onChange={(e) => setSplitAmount(e.target.value)}
-                            placeholder="Enter amount"
-                            className="input-styled mt-1"
-                          />
+                      <div className="space-y-4 animate-fade-in">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label htmlFor="splitCardAmount" className="text-sm flex items-center gap-1">
+                              <CreditCard className="h-3 w-3" /> Card ($)
+                            </Label>
+                            <Input
+                              id="splitCardAmount"
+                              type="number"
+                              min="0"
+                              max={total}
+                              step="0.01"
+                              value={splitCardAmount}
+                              onChange={(e) => {
+                                const cardVal = parseFloat(e.target.value) || 0;
+                                setSplitCardAmount(e.target.value);
+                                setSplitCashAmount((total - cardVal).toFixed(2));
+                              }}
+                              placeholder="0.00"
+                              className="input-styled mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="splitCashAmount" className="text-sm flex items-center gap-1">
+                              <Banknote className="h-3 w-3" /> Cash ($)
+                            </Label>
+                            <Input
+                              id="splitCashAmount"
+                              type="number"
+                              min="0"
+                              max={total}
+                              step="0.01"
+                              value={splitCashAmount}
+                              onChange={(e) => {
+                                const cashVal = parseFloat(e.target.value) || 0;
+                                setSplitCashAmount(e.target.value);
+                                setSplitCardAmount((total - cashVal).toFixed(2));
+                              }}
+                              placeholder="0.00"
+                              className="input-styled mt-1"
+                            />
+                          </div>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Remaining (COD)</span>
-                          <span className="font-semibold">${amountDueCod.toFixed(2)}</span>
+                        <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <CreditCard className="h-3 w-3" /> Pay by Card
+                            </span>
+                            <span className="font-semibold">${amountPaidOnline.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <Banknote className="h-3 w-3" /> Pay in Cash
+                            </span>
+                            <span className="font-semibold">${amountDueCod.toFixed(2)}</span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -434,11 +474,11 @@ const Checkout = () => {
             <div className="card-elevated p-6 space-y-3">
               <h3 className="font-heading font-semibold">Payment Summary</h3>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Pay Online</span>
+                <span className="text-muted-foreground">Pay by Card</span>
                 <span className="font-semibold">${amountPaidOnline.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Pay on Delivery</span>
+                <span className="text-muted-foreground">Pay in Cash</span>
                 <span className="font-semibold">${amountDueCod.toFixed(2)}</span>
               </div>
               <div className="border-t border-border pt-3 flex justify-between">

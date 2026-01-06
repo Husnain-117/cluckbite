@@ -10,7 +10,7 @@ export interface CartItem {
 
 export interface DeliveryInfo {
   type: 'delivery' | 'collection';
-  email?: string;
+  phone?: string;
   address?: string;
   pinLocation?: string;
   distance?: number;
