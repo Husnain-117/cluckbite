@@ -159,6 +159,69 @@ export type Database = {
           },
         ]
       }
+      offers: {
+        Row: {
+          applicable_categories: string[] | null
+          applicable_items: string[] | null
+          coupon_code: string | null
+          created_at: string
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          minimum_order: number | null
+          offer_type: string
+          start_date: string
+          times_used: number | null
+          title: string
+          updated_at: string
+          usage_limit: number | null
+        }
+        Insert: {
+          applicable_categories?: string[] | null
+          applicable_items?: string[] | null
+          coupon_code?: string | null
+          created_at?: string
+          description?: string | null
+          discount_type: string
+          discount_value?: number
+          end_date: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          minimum_order?: number | null
+          offer_type: string
+          start_date?: string
+          times_used?: number | null
+          title: string
+          updated_at?: string
+          usage_limit?: number | null
+        }
+        Update: {
+          applicable_categories?: string[] | null
+          applicable_items?: string[] | null
+          coupon_code?: string | null
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          minimum_order?: number | null
+          offer_type?: string
+          start_date?: string
+          times_used?: number | null
+          title?: string
+          updated_at?: string
+          usage_limit?: number | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string

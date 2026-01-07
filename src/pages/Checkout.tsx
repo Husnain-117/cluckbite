@@ -327,7 +327,7 @@ const Checkout = () => {
                   type="tel"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="+44 123 456 7890"
+                  placeholder="07XXX XXX XXX"
                   className="input-styled"
                 />
                 {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
