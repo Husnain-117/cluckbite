@@ -11,6 +11,8 @@ import {
   Bell,
   Shield,
   ChevronRight,
+  FolderOpen,
+  Tag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -26,8 +28,8 @@ interface AdminLayoutProps {
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'inventory', label: 'Inventory', icon: Package },
-  { id: 'categories', label: 'Categories', icon: Package },
-  { id: 'offers', label: 'Offers', icon: Package },
+  { id: 'categories', label: 'Categories', icon: FolderOpen },
+  { id: 'offers', label: 'Offers', icon: Tag },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'users', label: 'Users', icon: Users },
