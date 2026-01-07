@@ -26,6 +26,8 @@ interface AdminLayoutProps {
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'inventory', label: 'Inventory', icon: Package },
+  { id: 'categories', label: 'Categories', icon: Package },
+  { id: 'offers', label: 'Offers', icon: Package },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'users', label: 'Users', icon: Users },

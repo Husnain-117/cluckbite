@@ -9,12 +9,58 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-// Restaurant location (example coordinates - replace with actual)
-const RESTAURANT_LAT = 51.5074;
-const RESTAURANT_LNG = -0.1278;
-const BASE_DELIVERY_CHARGE = 2.0;
-const CHARGE_PER_KM = 0.5;
-const FREE_KM = 2;
+// Restaurant location: 1 Cowbridge Road West, Ely Cardiff
+const RESTAURANT_LAT = 51.4866;
+const RESTAURANT_LNG = -3.2454;
+
+// UK postcodes for distance calculation (approximate miles from Cardiff Ely)
+const cardiffPostcodeDistances: Record<string, number> = {
+  'CF5': 1.5, // Ely, Caerau - very close
+  'CF11': 2.5, // Canton, Pontcanna
+  'CF14': 3.5, // Whitchurch, Heath
+  'CF10': 3, // City Centre
+  'CF24': 3.5, // Roath, Plasnewydd
+  'CF23': 4.5, // Pontprennau, Pentwyn
+  'CF3': 5, // Rumney, St Mellons
+  'CF15': 5, // Radyr, Tongwynlais
+  'CF64': 6, // Penarth, Dinas Powys
+  'CF62': 7, // Barry
+  'CF63': 7.5, // Barry
+  'CF71': 8, // Cowbridge area
+  'CF83': 7, // Caerphilly
+  'CF82': 8, // Rhymney
+  'CF37': 10, // Pontypridd
+  'CF38': 9, // Llantrisant
+  'CF72': 6, // Miskin, Talbot Green
+  'CF35': 12, // Bridgend area
+  'CF31': 15, // Bridgend
+  'CF32': 14, // Bridgend
+  'CF33': 16, // Bridgend
+  'CF34': 17, // Maesteg
+  'CF39': 12, // Tonypandy
+  'CF40': 11, // Treorchy
+  'CF41': 13, // Mountain Ash
+  'CF42': 14, // Aberdare area
+  'CF43': 15, // Ferndale
+  'CF44': 16, // Aberdare
+  'CF45': 17, // Mountain Ash
+  'CF46': 10, // Treharris
+  'CF47': 14, // Merthyr Tydfil
+  'CF48': 15, // Merthyr Tydfil
+  'NP10': 8, // Newport area
+  'NP20': 12, // Newport
+  'NP19': 11, // Newport
+  'NP18': 9, // Caerleon
+  'NP44': 10, // Cwmbran
+};
+
+// Delivery charge tiers in miles (GBP)
+const getDeliveryCharge = (miles: number): number => {
+  if (miles <= 3) return 1.50;
+  if (miles <= 4) return 2.50;
+  // For distances above 4 miles, add £1 for each additional mile
+  return 2.50 + Math.ceil(miles - 4);
+};
 
 interface OrderTypeModalProps {
   isOpen: boolean;
@@ -33,11 +79,18 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
   const [deliveryCharges, setDeliveryCharges] = useState<number>(0);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  const calculateDeliveryCharges = (distanceKm: number) => {
-    if (distanceKm <= FREE_KM) {
-      return BASE_DELIVERY_CHARGE;
-    }
-    return BASE_DELIVERY_CHARGE + (distanceKm - FREE_KM) * CHARGE_PER_KM;
+  const calculateDeliveryCharges = (distanceMiles: number) => {
+    return getDeliveryCharge(distanceMiles);
+  };
+
+  const getDistanceFromPostcode = (postcode: string): number | null => {
+    const cleanPostcode = postcode.toUpperCase().replace(/\s/g, '');
+    // Extract the outward code (first part of UK postcode)
+    const outwardMatch = cleanPostcode.match(/^([A-Z]{1,2}\d{1,2})/);
+    if (!outwardMatch) return null;
+    
+    const outwardCode = outwardMatch[1];
+    return cardiffPostcodeDistances[outwardCode] || null;
   };
 
   const handleCalculateDistance = () => {
@@ -48,16 +101,26 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
 
     setIsCalculating(true);
     
-    // Simulate distance calculation (in real app, use Google Maps API)
+    // Calculate distance based on postcode
     setTimeout(() => {
-      // Random distance between 1-15km for demo
-      const calculatedDistance = Math.round((Math.random() * 14 + 1) * 10) / 10;
+      const calculatedDistance = getDistanceFromPostcode(pinLocation);
+      
+      if (calculatedDistance === null) {
+        toast.error('Unable to calculate distance for this postcode. Please check and try again.');
+        setIsCalculating(false);
+        return;
+      }
+      
       const charges = calculateDeliveryCharges(calculatedDistance);
       
       setDistance(calculatedDistance);
       setDeliveryCharges(charges);
       setIsCalculating(false);
-    }, 1000);
+      
+      if (calculatedDistance > 15) {
+        toast.warning('Delivery to this location may take longer than usual.');
+      }
+    }, 800);
   };
 
   const handleSelectDelivery = () => {
@@ -220,7 +283,7 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+44 123 456 7890"
+                placeholder="07XXX XXX XXX"
                 className="input-styled"
               />
             </div>
@@ -268,13 +331,13 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
               <div className="bg-muted rounded-xl p-4 space-y-2 animate-slide-up">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Distance from restaurant:</span>
-                  <span className="font-semibold">{distance} km</span>
+                  <span className="font-semibold">{distance} miles</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery charges:</span>
-                  <span className="font-semibold text-primary">${deliveryCharges.toFixed(2)}</span>
+                  <span className="font-semibold text-primary">£{deliveryCharges.toFixed(2)}</span>
                 </div>
-                {distance <= FREE_KM && (
+                {distance <= 3 && (
                   <p className="text-sm text-green-500 font-medium">
                     🎉 You qualify for minimum delivery charge!
                   </p>

@@ -6,6 +6,7 @@ import AboutSection from '@/components/landing/AboutSection';
 import GallerySection from '@/components/landing/GallerySection';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import Footer from '@/components/landing/Footer';
+import OffersPopup from '@/components/OffersPopup';
 
 const Index = () => {
   return (
@@ -17,6 +18,7 @@ const Index = () => {
       <GallerySection />
       <TestimonialsSection />
       <Footer />
+      <OffersPopup />
     </div>
   );
 };
