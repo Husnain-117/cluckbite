@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      addon_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      addons: {
+        Row: {
+          addon_category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_available: boolean | null
+          max_quantity: number | null
+          name: string
+          price: number
+        }
+        Insert: {
+          addon_category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_available?: boolean | null
+          max_quantity?: number | null
+          name: string
+          price?: number
+        }
+        Update: {
+          addon_category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_available?: boolean | null
+          max_quantity?: number | null
+          name?: string
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "addons_addon_category_id_fkey"
+            columns: ["addon_category_id"]
+            isOneToOne: false
+            referencedRelation: "addon_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -41,6 +109,45 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_item_addons: {
+        Row: {
+          addon_id: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          menu_item_id: string
+        }
+        Insert: {
+          addon_id: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          menu_item_id: string
+        }
+        Update: {
+          addon_id?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          menu_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_item_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_item_addons_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_items: {
         Row: {
           allergens: string[] | null
@@ -51,6 +158,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          ingredients: string[] | null
           is_available: boolean | null
           is_featured: boolean | null
           low_stock_threshold: number | null
@@ -71,6 +179,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          ingredients?: string[] | null
           is_available?: boolean | null
           is_featured?: boolean | null
           low_stock_threshold?: number | null
@@ -91,6 +200,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          ingredients?: string[] | null
           is_available?: boolean | null
           is_featured?: boolean | null
           low_stock_threshold?: number | null
@@ -224,29 +334,35 @@ export type Database = {
       }
       order_items: {
         Row: {
+          addons_total: number | null
           id: string
           item_title: string
           menu_item_id: string | null
           order_id: string
           quantity: number
+          selected_addons: Json | null
           total_price: number
           unit_price: number
         }
         Insert: {
+          addons_total?: number | null
           id?: string
           item_title: string
           menu_item_id?: string | null
           order_id: string
           quantity: number
+          selected_addons?: Json | null
           total_price: number
           unit_price: number
         }
         Update: {
+          addons_total?: number | null
           id?: string
           item_title?: string
           menu_item_id?: string | null
           order_id?: string
           quantity?: number
+          selected_addons?: Json | null
           total_price?: number
           unit_price?: number
         }

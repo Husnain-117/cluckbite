@@ -1,11 +1,21 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
+export interface SelectedAddon {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface CartItem {
   id: string;
   title: string;
   price: number;
   quantity: number;
   image_url?: string;
+  addons?: SelectedAddon[];
+  addonsTotal?: number;
+  cartItemId?: string; // Unique identifier for cart items with different addons
 }
 
 export interface DeliveryInfo {
@@ -21,8 +31,9 @@ interface CartContextType {
   items: CartItem[];
   deliveryInfo: DeliveryInfo | null;
   addItem: (item: Omit<CartItem, 'quantity'>) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  addItemWithAddons: (item: Omit<CartItem, 'quantity' | 'cartItemId'>, quantity: number) => void;
+  removeItem: (cartItemId: string) => void;
+  updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
   setDeliveryInfo: (info: DeliveryInfo) => void;
   subtotal: number;
@@ -33,32 +44,53 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// Generate unique cart item ID
+const generateCartItemId = () => {
+  return `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [deliveryInfo, setDeliveryInfo] = useState<DeliveryInfo | null>(null);
 
+  // Original addItem for backward compatibility (without addons)
   const addItem = useCallback((item: Omit<CartItem, 'quantity'>) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === item.id);
+      // Find existing item with same id AND no addons
+      const existing = prev.find(
+        (i) => i.id === item.id && (!i.addons || i.addons.length === 0) && (!item.addons || item.addons.length === 0)
+      );
       if (existing) {
         return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { ...item, quantity: 1, cartItemId: generateCartItemId() }];
     });
   }, []);
 
-  const removeItem = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  // New addItem with addons support
+  const addItemWithAddons = useCallback((item: Omit<CartItem, 'quantity' | 'cartItemId'>, quantity: number) => {
+    setItems((prev) => {
+      // For items with addons, always create a new cart entry
+      // This is because different addon combinations should be separate line items
+      const cartItemId = generateCartItemId();
+      return [...prev, { ...item, quantity, cartItemId }];
+    });
   }, []);
 
-  const updateQuantity = useCallback((id: string, quantity: number) => {
+  const removeItem = useCallback((cartItemId: string) => {
+    setItems((prev) => prev.filter((i) => i.cartItemId !== cartItemId && i.id !== cartItemId));
+  }, []);
+
+  const updateQuantity = useCallback((cartItemId: string, quantity: number) => {
     if (quantity <= 0) {
-      setItems((prev) => prev.filter((i) => i.id !== id));
+      setItems((prev) => prev.filter((i) => i.cartItemId !== cartItemId && i.id !== cartItemId));
     } else {
       setItems((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, quantity } : i))
+        prev.map((i) => 
+          (i.cartItemId === cartItemId || i.id === cartItemId) ? { ...i, quantity } : i
+        )
       );
     }
   }, []);
@@ -68,7 +100,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDeliveryInfo(null);
   }, []);
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Calculate subtotal including addons
+  const subtotal = items.reduce((sum, item) => {
+    const itemPrice = item.price * item.quantity;
+    const addonsPrice = (item.addonsTotal || 0) * item.quantity;
+    return sum + itemPrice + addonsPrice;
+  }, 0);
+
   const deliveryCharges = deliveryInfo?.deliveryCharges || 0;
   const total = subtotal + deliveryCharges;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -79,6 +117,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         items,
         deliveryInfo,
         addItem,
+        addItemWithAddons,
         removeItem,
         updateQuantity,
         clearCart,

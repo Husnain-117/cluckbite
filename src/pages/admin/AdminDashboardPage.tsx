@@ -10,6 +10,7 @@ import UserManagement from '@/components/admin/UserManagement';
 import AdminSettings from '@/components/admin/AdminSettings';
 import CategoryManagement from '@/components/admin/CategoryManagement';
 import OffersManagement from '@/components/admin/OffersManagement';
+import AddonsManagement from '@/components/admin/AddonsManagement';
 
 const AdminDashboardPage = () => {
   const { user, isAdmin, loading } = useAdminAuth();
@@ -40,6 +41,8 @@ const AdminDashboardPage = () => {
         return <AdminDashboard />;
       case 'inventory':
         return <InventoryManagement />;
+      case 'addons':
+        return <AddonsManagement />;
       case 'categories':
         return <CategoryManagement />;
       case 'offers':
