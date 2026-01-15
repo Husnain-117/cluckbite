@@ -113,14 +113,24 @@ const WalkInOrders = () => {
     : 0;
 
   const addToCart = (item: any) => {
+    const cartItemId = crypto.randomUUID();
     setCart((prev) => {
-      const existing = prev.find((i) => i.id === item.id);
+      const existing = prev.find((i) => i.id === item.id && !i.addons?.length);
       if (existing) {
         return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.id === item.id && !i.addons?.length ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-      return [...prev, { id: item.id, title: item.title, price: Number(item.price), quantity: 1, category: item.category }];
+      return [...prev, { 
+        id: item.id, 
+        title: item.title, 
+        price: Number(item.price), 
+        quantity: 1, 
+        category: item.category,
+        cartItemId,
+        addons: [],
+        addonsTotal: 0
+      }];
     });
   };
 

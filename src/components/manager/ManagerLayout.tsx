@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Phone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,8 +19,8 @@ import ManagerNotifications from './ManagerNotifications';
 
 interface ManagerLayoutProps {
   children: React.ReactNode;
-  activeTab: 'orders' | 'walkin';
-  onTabChange: (tab: 'orders' | 'walkin') => void;
+  activeTab: 'orders' | 'walkin' | 'phone';
+  onTabChange: (tab: 'orders' | 'walkin' | 'phone') => void;
 }
 
 const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps) => {
@@ -51,6 +52,7 @@ const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps)
   const navItems = [
     { id: 'orders', label: 'Order Management', icon: ClipboardList },
     { id: 'walkin', label: 'Walk-In Orders', icon: ShoppingCart },
+    { id: 'phone', label: 'Phone Orders', icon: Phone },
   ];
 
   return (
@@ -84,7 +86,7 @@ const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps)
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => onTabChange(item.id as 'orders' | 'walkin')}
+                  onClick={() => onTabChange(item.id as 'orders' | 'walkin' | 'phone')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                     activeTab === item.id
                       ? 'bg-primary text-primary-foreground'
@@ -127,7 +129,8 @@ const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps)
               <LayoutDashboard className="h-5 w-5" />
               <ChevronRight className="h-4 w-4" />
               <span className="font-medium text-foreground">
-                {activeTab === 'orders' ? 'Order Management' : 'Walk-In Orders'}
+                {activeTab === 'orders' ? 'Order Management' : 
+                 activeTab === 'walkin' ? 'Walk-In Orders' : 'Phone Orders (Delivery)'}
               </span>
             </div>
 
