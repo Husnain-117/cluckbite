@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Minus, Trash2, User, Phone, Mail, CreditCard, Banknote, Calculator, Printer, Info } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, User, Phone, Mail, CreditCard, Banknote, Calculator, Printer, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { format } from 'date-fns';
 import ItemDetailsModal, { SelectedAddon } from '@/components/menu/ItemDetailsModal';
 
@@ -54,6 +61,7 @@ const WalkInOrders = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
+  const [showCheckoutSheet, setShowCheckoutSheet] = useState(false);
   
   // Item details modal
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -102,10 +110,23 @@ const WalkInOrders = () => {
     'Tenders': '🍖',
     'Beverages': '🥤',
     'Desserts': '🍰',
+    'Chicken Burgers': '🍔',
+    'Smash Burgers': '🍔',
+    'Fries': '🍟',
+    'Tenders & Wings': '🍗',
+    'Doner': '🥙',
+    'Rice Bowl': '🍚',
+    'Dessert': '🍰',
+    'Wrap': '🌯',
+    'Drinks': '🥤',
+    'Meals': '🍱',
   };
 
   // Cart calculations
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => {
+    const itemTotal = (item.price + (item.addonsTotal || 0)) * item.quantity;
+    return sum + itemTotal;
+  }, 0);
   const discountAmount = discount ? parseFloat(discount) : 0;
   const total = Math.max(0, subtotal - discountAmount);
   const changeToReturn = paymentMethod === 'cash' && amountReceived 
@@ -132,13 +153,32 @@ const WalkInOrders = () => {
         addonsTotal: 0
       }];
     });
+    toast.success(`${item.title} added`);
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const handleAddToCartWithAddons = (item: any, addons: SelectedAddon[], totalPrice: number) => {
+    const cartItemId = crypto.randomUUID();
+    const addonsTotal = addons.reduce((sum, a) => sum + a.price * a.quantity, 0);
+    setCart((prev) => [...prev, {
+      id: item.id,
+      title: item.title,
+      price: Number(item.price),
+      quantity: item.quantity || 1,
+      category: item.category,
+      cartItemId,
+      addons,
+      addonsTotal,
+    }]);
+    setIsItemModalOpen(false);
+    setSelectedItem(null);
+    toast.success(`${item.title} added with extras`);
+  };
+
+  const updateQuantity = (cartItemId: string, quantity: number) => {
     if (quantity <= 0) {
-      setCart((prev) => prev.filter((i) => i.id !== id));
+      setCart((prev) => prev.filter((i) => i.cartItemId !== cartItemId));
     } else {
-      setCart((prev) => prev.map((i) => (i.id === id ? { ...i, quantity } : i)));
+      setCart((prev) => prev.map((i) => (i.cartItemId === cartItemId ? { ...i, quantity } : i)));
     }
   };
 
@@ -202,7 +242,7 @@ const WalkInOrders = () => {
                           paymentMethod === 'card' ? 'completed' : 'partial',
           amount_paid_online: amountPaidOnline,
           amount_due_cod: amountDueCod,
-          order_status: 'approved', // Skip pending for walk-in
+          order_status: 'approved',
           special_instructions: specialInstructions || null,
         })
         .select()
@@ -210,14 +250,16 @@ const WalkInOrders = () => {
 
       if (orderError) throw orderError;
 
-      // Create order items
+      // Create order items with addons
       const orderItems = cart.map((item) => ({
         order_id: order.id,
         menu_item_id: item.id,
         item_title: item.title,
         quantity: item.quantity,
         unit_price: item.price,
-        total_price: item.price * item.quantity,
+        total_price: (item.price + (item.addonsTotal || 0)) * item.quantity,
+        selected_addons: item.addons && item.addons.length > 0 ? JSON.parse(JSON.stringify(item.addons)) : null,
+        addons_total: item.addonsTotal || 0,
       }));
 
       const { error: itemsError } = await supabase
@@ -238,12 +280,13 @@ const WalkInOrders = () => {
       await supabase.from('notifications').insert({
         recipient_role: 'admin',
         order_id: order.id,
-        message: `Walk-in order #${orderNumber} placed - $${total.toFixed(2)}`,
+        message: `Walk-in order #${orderNumber} placed - £${total.toFixed(2)}`,
         notification_type: 'new_order',
       });
 
       setCompletedOrder({ ...order, order_items: orderItems });
       setShowSuccessModal(true);
+      setShowCheckoutSheet(false);
     } catch (error: any) {
       console.error('Error placing order:', error);
       toast.error('Failed to place order');
@@ -281,28 +324,33 @@ const WalkInOrders = () => {
           ${cart.map((item) => `
             <div class="item">
               <span>${item.quantity}x ${item.title}</span>
-              <span>$${(item.price * item.quantity).toFixed(2)}</span>
+              <span>£${((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}</span>
             </div>
+            ${item.addons?.map(addon => `
+              <div style="font-size: 0.8em; margin-left: 10px; color: #666;">
+                + ${addon.name} x${addon.quantity}
+              </div>
+            `).join('') || ''}
           `).join('')}
           <div class="divider"></div>
           <div class="item">
             <span>Subtotal</span>
-            <span>$${subtotal.toFixed(2)}</span>
+            <span>£${subtotal.toFixed(2)}</span>
           </div>
           ${discountAmount > 0 ? `
             <div class="item">
               <span>Discount</span>
-              <span>-$${discountAmount.toFixed(2)}</span>
+              <span>-£${discountAmount.toFixed(2)}</span>
             </div>
           ` : ''}
           <div class="item total">
             <span>Total</span>
-            <span>$${total.toFixed(2)}</span>
+            <span>£${total.toFixed(2)}</span>
           </div>
           <div class="divider"></div>
           <p style="text-align: center;">Payment: ${paymentMethod.toUpperCase()}</p>
           ${paymentMethod === 'cash' && changeToReturn > 0 ? `
-            <p style="text-align: center;">Change: $${changeToReturn.toFixed(2)}</p>
+            <p style="text-align: center;">Change: £${changeToReturn.toFixed(2)}</p>
           ` : ''}
           <div class="divider"></div>
           <p style="text-align: center; margin-top: 20px;">Thank you for visiting!</p>
@@ -324,17 +372,220 @@ const WalkInOrders = () => {
     setCompletedOrder(null);
   };
 
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Checkout Sheet Content
+  const CheckoutContent = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+        {/* Cart Items */}
+        <div>
+          <h3 className="font-heading font-semibold mb-3 flex items-center justify-between">
+            <span>Cart ({cartItemCount} items)</span>
+            {cart.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive h-8">
+                <Trash2 className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </h3>
+          
+          {cart.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">Add items to start</p>
+          ) : (
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {cart.map((item) => (
+                <div key={item.cartItemId} className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-sm">{item.title}</p>
+                    {item.addons && item.addons.length > 0 && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        +{item.addons.map(a => a.name).join(', ')}
+                      </p>
+                    )}
+                    <p className="text-sm text-secondary font-semibold">
+                      £{((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-6 text-center font-medium">{item.quantity}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Customer Info */}
+        <div className="space-y-3">
+          <h3 className="font-heading font-semibold flex items-center gap-2">
+            <User className="h-4 w-4 text-primary" />
+            Customer
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="name" className="text-xs">Name *</Label>
+              <Input
+                id="name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Name"
+                className="input-styled h-9"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone" className="text-xs">Phone *</Label>
+              <Input
+                id="phone"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="07XXX XXX XXX"
+                className="input-styled h-9"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Method */}
+        <div className="space-y-3">
+          <h3 className="font-heading font-semibold">Payment</h3>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => setPaymentMethod('cash')}
+              className={`p-3 rounded-xl border text-center transition-all ${
+                paymentMethod === 'cash' ? 'border-primary bg-primary/10' : 'border-border'
+              }`}
+            >
+              <Banknote className="h-5 w-5 mx-auto text-green-500 mb-1" />
+              <span className="text-xs font-medium">Cash</span>
+            </button>
+            <button
+              onClick={() => setPaymentMethod('card')}
+              className={`p-3 rounded-xl border text-center transition-all ${
+                paymentMethod === 'card' ? 'border-primary bg-primary/10' : 'border-border'
+              }`}
+            >
+              <CreditCard className="h-5 w-5 mx-auto text-blue-500 mb-1" />
+              <span className="text-xs font-medium">Card</span>
+            </button>
+            <button
+              onClick={() => setPaymentMethod('split')}
+              className={`p-3 rounded-xl border text-center transition-all ${
+                paymentMethod === 'split' ? 'border-primary bg-primary/10' : 'border-border'
+              }`}
+            >
+              <Calculator className="h-5 w-5 mx-auto text-purple-500 mb-1" />
+              <span className="text-xs font-medium">Split</span>
+            </button>
+          </div>
+
+          {paymentMethod === 'cash' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Received (£)</Label>
+                <Input
+                  type="number"
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  placeholder="0.00"
+                  className="input-styled h-9"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Change</Label>
+                <div className="h-9 px-3 rounded-lg bg-muted flex items-center font-bold text-green-500">
+                  £{changeToReturn > 0 ? changeToReturn.toFixed(2) : '0.00'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {paymentMethod === 'split' && (
+            <div>
+              <Label className="text-xs">Card Amount (£)</Label>
+              <Input
+                type="number"
+                value={splitAmount}
+                onChange={(e) => setSplitAmount(e.target.value)}
+                placeholder="0.00"
+                className="input-styled h-9"
+              />
+              {splitAmount && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cash: £{(total - (parseFloat(splitAmount) || 0)).toFixed(2)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Discount */}
+        <div>
+          <Label className="text-xs">Discount (£)</Label>
+          <Input
+            type="number"
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
+            placeholder="0.00"
+            className="input-styled h-9"
+          />
+        </div>
+      </div>
+
+      {/* Summary & Place Order */}
+      <div className="border-t border-border pt-4 space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span>£{subtotal.toFixed(2)}</span>
+        </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-sm text-green-500">
+            <span>Discount</span>
+            <span>-£{discountAmount.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="flex justify-between font-heading font-bold text-xl">
+          <span>Total</span>
+          <span className="text-primary">£{total.toFixed(2)}</span>
+        </div>
+        <Button
+          onClick={handlePlaceOrder}
+          disabled={isSubmitting || cart.length === 0}
+          className="w-full btn-primary h-12 text-lg"
+        >
+          {isSubmitting ? 'Processing...' : `Place Order • £${total.toFixed(2)}`}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex gap-6 h-[calc(100vh-140px)]">
-      {/* Left Panel - Menu & Cart */}
-      <div className="flex-1 flex flex-col">
-        {/* Category Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-4">
+    <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-4">
+      {/* Menu Section */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Category Tabs - Horizontal scroll */}
+        <div className="flex gap-2 overflow-x-auto pb-3 mb-3 scrollbar-hide -mx-1 px-1">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                 selectedCategory === cat
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
@@ -346,46 +597,51 @@ const WalkInOrders = () => {
         </div>
 
         {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search menu..."
-            className="input-styled pl-12"
+            placeholder="Search..."
+            className="input-styled pl-10 h-10"
           />
         </div>
 
-        {/* Menu Grid */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Menu Grid - Responsive */}
+        <div className="flex-1 overflow-y-auto -mx-1 px-1">
           {isLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-32 rounded-xl" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 rounded-xl" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
               {filteredItems.map((item) => {
-                const inCart = cart.find((c) => c.id === item.id);
+                const inCart = cart.filter((c) => c.id === item.id).reduce((sum, c) => sum + c.quantity, 0);
                 
                 return (
                   <button
                     key={item.id}
                     onClick={() => addToCart(item)}
-                    className="card-elevated p-4 text-left hover:border-primary/50 transition-all"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setSelectedItem(item);
+                      setIsItemModalOpen(true);
+                    }}
+                    className="card-elevated p-3 text-left hover:border-primary/50 transition-all relative active:scale-95"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{categoryEmojis[item.category] || '🍽️'}</span>
+                    {inCart > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {inCart}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{categoryEmojis[item.category] || '🍽️'}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{item.title}</p>
-                        <p className="text-secondary font-bold">${Number(item.price).toFixed(2)}</p>
+                        <p className="font-medium truncate text-sm">{item.title}</p>
+                        <p className="text-secondary font-bold text-sm">£{Number(item.price).toFixed(2)}</p>
                       </div>
-                      {inCart && (
-                        <span className="bg-primary text-primary-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
-                          {inCart.quantity}
-                        </span>
-                      )}
                     </div>
                   </button>
                 );
@@ -393,269 +649,85 @@ const WalkInOrders = () => {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Cart Section */}
-        <div className="border-t border-border pt-4 mt-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-heading font-semibold">Cart ({cart.length} items)</h3>
-            {cart.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-1" />
-                Clear
-              </Button>
-            )}
-          </div>
-          
-          {cart.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">Add items to start an order</p>
-          ) : (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {cart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-sm">{item.title}</p>
-                    <p className="text-sm text-secondary">${(item.price * item.quantity).toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Desktop Checkout Panel */}
+      <div className="hidden lg:flex w-80 xl:w-96 flex-col">
+        <div className="card-elevated p-4 flex-1 overflow-hidden flex flex-col">
+          <CheckoutContent />
         </div>
       </div>
 
-      {/* Right Panel - Customer & Checkout */}
-      <div className="w-96 flex flex-col">
-        <div className="card-elevated p-6 flex-1 overflow-y-auto space-y-6">
-          {/* Customer Info */}
-          <div>
-            <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              Customer Information
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Customer name"
-                  className="input-styled"
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone *</Label>
-                <Input
-                  id="phone"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Phone number"
-                  className="input-styled"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email (optional)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="For receipt"
-                  className="input-styled"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Method */}
-          <div>
-            <h3 className="font-heading font-semibold mb-4">Payment Method</h3>
-            <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
-              <div className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${
-                paymentMethod === 'cash' ? 'border-primary bg-primary/5' : 'border-border'
-              }`}>
-                <RadioGroupItem value="cash" id="cash" />
-                <Banknote className="h-5 w-5 text-green-500" />
-                <label htmlFor="cash" className="flex-1 cursor-pointer">Cash</label>
-              </div>
-              <div className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${
-                paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border'
-              }`}>
-                <RadioGroupItem value="card" id="card" />
-                <CreditCard className="h-5 w-5 text-primary" />
-                <label htmlFor="card" className="flex-1 cursor-pointer">Card</label>
-              </div>
-              <div className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${
-                paymentMethod === 'split' ? 'border-primary bg-primary/5' : 'border-border'
-              }`}>
-                <RadioGroupItem value="split" id="split" />
-                <Calculator className="h-5 w-5 text-secondary" />
-                <label htmlFor="split" className="flex-1 cursor-pointer">Split</label>
-              </div>
-            </RadioGroup>
-
-            {paymentMethod === 'cash' && (
-              <div className="mt-4 space-y-3">
-                <Label>Amount Received</Label>
-                <Input
-                  type="number"
-                  value={amountReceived}
-                  onChange={(e) => setAmountReceived(e.target.value)}
-                  placeholder="0.00"
-                  className="input-styled text-lg"
-                />
-                <div className="flex gap-2">
-                  {[10, 20, 50, 100].map((amount) => (
-                    <Button
-                      key={amount}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAmountReceived(amount.toString())}
-                    >
-                      ${amount}
-                    </Button>
-                  ))}
-                </div>
-                {amountReceived && parseFloat(amountReceived) >= total && (
-                  <div className="bg-green-500/10 text-green-500 p-3 rounded-xl text-center">
-                    <p className="text-sm">Change to Return</p>
-                    <p className="text-2xl font-heading font-bold">${changeToReturn.toFixed(2)}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {paymentMethod === 'split' && (
-              <div className="mt-4 space-y-3">
-                <Label>Card Amount</Label>
-                <Input
-                  type="number"
-                  value={splitAmount}
-                  onChange={(e) => setSplitAmount(e.target.value)}
-                  placeholder="0.00"
-                  max={total}
-                  className="input-styled"
-                />
-                <div className="bg-muted p-3 rounded-xl">
-                  <div className="flex justify-between text-sm">
-                    <span>Cash Amount:</span>
-                    <span>${(total - (parseFloat(splitAmount) || 0)).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Discount */}
-          <div>
-            <Label>Discount ($)</Label>
-            <Input
-              type="number"
-              value={discount}
-              onChange={(e) => setDiscount(e.target.value)}
-              placeholder="0.00"
-              className="input-styled"
-            />
-          </div>
-
-          {/* Special Instructions */}
-          <div>
-            <Label>Notes</Label>
-            <Textarea
-              value={specialInstructions}
-              onChange={(e) => setSpecialInstructions(e.target.value)}
-              placeholder="Special instructions..."
-              className="input-styled"
-            />
-          </div>
-        </div>
-
-        {/* Order Summary & Actions */}
-        <div className="card-elevated p-6 mt-4">
-          <div className="space-y-2 mb-4">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-green-500">
-                <span>Discount</span>
-                <span>-${discountAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-heading font-bold text-2xl pt-2 border-t border-border">
-              <span>Total</span>
-              <span className="text-secondary">${total.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <Button
-            onClick={handlePlaceOrder}
-            disabled={isSubmitting || cart.length === 0}
-            className="w-full btn-primary py-6 text-lg"
-          >
-            {isSubmitting ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary-foreground" />
-                Processing...
-              </span>
-            ) : (
-              `Place Order • $${total.toFixed(2)}`
-            )}
-          </Button>
-        </div>
+      {/* Mobile/Tablet Floating Cart Button & Sheet */}
+      <div className="lg:hidden fixed bottom-4 right-4 z-50">
+        <Sheet open={showCheckoutSheet} onOpenChange={setShowCheckoutSheet}>
+          <SheetTrigger asChild>
+            <Button className="btn-primary h-14 px-6 shadow-lg relative">
+              <ShoppingBag className="h-5 w-5 mr-2" />
+              <span className="font-bold">£{total.toFixed(2)}</span>
+              {cartItemCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-secondary text-secondary-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                  {cartItemCount}
+                </span>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
+            <SheetHeader className="pb-4">
+              <SheetTitle className="font-heading text-xl">Checkout</SheetTitle>
+            </SheetHeader>
+            <CheckoutContent />
+          </SheetContent>
+        </Sheet>
       </div>
+
+      {/* Item Details Modal */}
+      {selectedItem && (
+        <ItemDetailsModal
+          isOpen={isItemModalOpen}
+          onClose={() => {
+            setIsItemModalOpen(false);
+            setSelectedItem(null);
+          }}
+          item={selectedItem}
+          onAddToCart={handleAddToCartWithAddons}
+        />
+      )}
 
       {/* Success Modal */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="max-w-md bg-card">
+        <DialogContent className="sm:max-w-md bg-card">
           <DialogHeader>
-            <DialogTitle className="text-center">
-              <span className="text-6xl block mb-4">✅</span>
-              <span className="text-2xl font-heading">Order Placed!</span>
+            <DialogTitle className="text-center text-2xl">
+              🎉 Order Placed!
             </DialogTitle>
           </DialogHeader>
           
-          <div className="text-center space-y-4">
-            <div className="bg-muted rounded-xl p-4">
-              <p className="text-sm text-muted-foreground">Order Number</p>
-              <p className="text-2xl font-heading font-bold text-primary">
-                {completedOrder?.order_number}
-              </p>
-            </div>
-            
-            <p className="text-muted-foreground">
-              Total: <span className="font-bold text-secondary">${total.toFixed(2)}</span>
+          <div className="text-center py-4">
+            <p className="text-lg font-mono font-bold text-primary mb-2">
+              {completedOrder?.order_number}
             </p>
+            <p className="text-muted-foreground">
+              Walk-in order has been created successfully
+            </p>
+            <p className="text-2xl font-heading font-bold text-secondary mt-4">
+              £{total.toFixed(2)}
+            </p>
+            {paymentMethod === 'cash' && changeToReturn > 0 && (
+              <p className="text-green-500 font-medium mt-2">
+                Change: £{changeToReturn.toFixed(2)}
+              </p>
+            )}
+          </div>
 
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={printReceipt} className="flex-1">
-                <Printer className="h-4 w-4 mr-2" />
-                Print Receipt
-              </Button>
-              <Button onClick={handleNewOrder} className="flex-1 btn-primary">
-                New Order
-              </Button>
-            </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={printReceipt} className="flex-1">
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+            <Button onClick={handleNewOrder} className="flex-1 btn-primary">
+              New Order
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

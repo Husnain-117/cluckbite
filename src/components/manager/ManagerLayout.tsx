@@ -57,10 +57,10 @@ const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps)
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
+      {/* Sidebar - Desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 bg-card border-r border-border transition-all duration-300 ${
-          isSidebarOpen ? 'w-64' : 'w-16'
+        className={`hidden md:fixed md:inset-y-0 md:left-0 md:z-50 md:flex md:flex-col bg-card border-r border-border transition-all duration-300 ${
+          isSidebarOpen ? 'md:w-64' : 'md:w-16'
         }`}
       >
         <div className="flex flex-col h-full">
@@ -121,20 +121,20 @@ const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps)
       </aside>
 
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-16'}`}>
         {/* Top Bar */}
         <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b border-border">
-          <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <LayoutDashboard className="h-5 w-5" />
-              <ChevronRight className="h-4 w-4" />
-              <span className="font-medium text-foreground">
-                {activeTab === 'orders' ? 'Order Management' : 
-                 activeTab === 'walkin' ? 'Walk-In Orders' : 'Phone Orders (Delivery)'}
+              <LayoutDashboard className="h-5 w-5 hidden sm:block" />
+              <ChevronRight className="h-4 w-4 hidden sm:block" />
+              <span className="font-medium text-foreground text-sm sm:text-base truncate">
+                {activeTab === 'orders' ? 'Orders' : 
+                 activeTab === 'walkin' ? 'Walk-In' : 'Phone Orders'}
               </span>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {/* Notifications */}
               <div className="relative">
                 <Button
@@ -157,17 +157,44 @@ const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps)
               </div>
 
               {/* Back to Customer Site */}
-              <Link to="/">
+              <Link to="/" className="hidden sm:block">
                 <Button variant="outline" size="sm">
-                  View Customer Site
+                  View Site
                 </Button>
               </Link>
             </div>
           </div>
         </header>
 
+        {/* Mobile Bottom Navigation */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border px-2 py-2 safe-area-pb">
+          <div className="flex justify-around">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id as 'orders' | 'walkin' | 'phone')}
+                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${
+                  activeTab === item.id
+                    ? 'text-primary'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="text-xs font-medium">{item.label.split(' ')[0]}</span>
+              </button>
+            ))}
+            <button
+              onClick={handleSignOut}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-muted-foreground"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="text-xs font-medium">Logout</span>
+            </button>
+          </div>
+        </nav>
+
         {/* Page Content */}
-        <main className="p-6">{children}</main>
+        <main className="p-4 md:p-6 pb-24 md:pb-6">{children}</main>
       </div>
     </div>
   );
