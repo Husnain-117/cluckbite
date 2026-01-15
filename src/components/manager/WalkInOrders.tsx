@@ -620,31 +620,29 @@ const WalkInOrders = () => {
               {filteredItems.map((item) => {
                 const inCart = cart.filter((c) => c.id === item.id).reduce((sum, c) => sum + c.quantity, 0);
                 
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => addToCart(item)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setSelectedItem(item);
-                      setIsItemModalOpen(true);
-                    }}
-                    className="card-elevated p-3 text-left hover:border-primary/50 transition-all relative active:scale-95"
-                  >
-                    {inCart > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                        {inCart}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">{categoryEmojis[item.category] || '🍽️'}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-sm">{item.title}</p>
-                        <p className="text-secondary font-bold text-sm">£{Number(item.price).toFixed(2)}</p>
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedItem(item);
+                        setIsItemModalOpen(true);
+                      }}
+                      className="card-elevated p-3 text-left hover:border-primary/50 transition-all relative active:scale-95"
+                    >
+                      {inCart > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                          {inCart}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{categoryEmojis[item.category] || '🍽️'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate text-sm">{item.title}</p>
+                          <p className="text-secondary font-bold text-sm">£{Number(item.price).toFixed(2)}</p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
+                    </button>
+                  );
               })}
             </div>
           )}
