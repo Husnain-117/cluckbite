@@ -4,11 +4,12 @@ import { useManagerAuth } from '@/hooks/useManagerAuth';
 import ManagerLayout from '@/components/manager/ManagerLayout';
 import OrderManagement from '@/components/manager/OrderManagement';
 import WalkInOrders from '@/components/manager/WalkInOrders';
+import PhoneOrders from '@/components/manager/PhoneOrders';
 
 const ManagerDashboard = () => {
   const { isManager, isLoading } = useManagerAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'orders' | 'walkin'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'walkin' | 'phone'>('orders');
 
   useEffect(() => {
     if (!isLoading && !isManager) {
@@ -31,9 +32,22 @@ const ManagerDashboard = () => {
     return null;
   }
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'orders':
+        return <OrderManagement />;
+      case 'walkin':
+        return <WalkInOrders />;
+      case 'phone':
+        return <PhoneOrders />;
+      default:
+        return <OrderManagement />;
+    }
+  };
+
   return (
     <ManagerLayout activeTab={activeTab} onTabChange={setActiveTab}>
-      {activeTab === 'orders' ? <OrderManagement /> : <WalkInOrders />}
+      {renderContent()}
     </ManagerLayout>
   );
 };
