@@ -13,6 +13,7 @@ import {
   ChevronRight,
   FolderOpen,
   Tag,
+  PlusCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -28,6 +29,7 @@ interface AdminLayoutProps {
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'inventory', label: 'Inventory', icon: Package },
+  { id: 'addons', label: 'Add-ons', icon: PlusCircle },
   { id: 'categories', label: 'Categories', icon: FolderOpen },
   { id: 'offers', label: 'Offers', icon: Tag },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },

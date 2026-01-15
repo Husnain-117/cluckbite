@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Plus, Minus, ChevronLeft, ShoppingCart } from 'lucide-react';
+import { Search, Filter, Plus, Minus, ChevronLeft, ShoppingCart, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, SelectedAddon } from '@/contexts/CartContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -22,12 +22,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import ItemDetailsModal from '@/components/menu/ItemDetailsModal';
 
 const Menu = () => {
-  const { items, addItem, updateQuantity, removeItem, subtotal, deliveryCharges, total, itemCount } = useCart();
+  const { items, addItem, addItemWithAddons, updateQuantity, removeItem, subtotal, deliveryCharges, total, itemCount } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('default');
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: menuItems, isLoading } = useQuery({
     queryKey: ['menu-items'],
@@ -91,6 +94,16 @@ const Menu = () => {
     'Tenders': '🍖',
     'Beverages': '🥤',
     'Desserts': '🍰',
+    'Chicken Burgers': '🍔',
+    'Smash Burgers': '🍔',
+    'Fries': '🍟',
+    'Tenders & Wings': '🍗',
+    'Doner': '🥙',
+    'Rice Bowl': '🍚',
+    'Dessert': '🍰',
+    'Wrap': '🌯',
+    'Drinks': '🥤',
+    'Meals': '🍱',
   };
 
   const getItemQuantity = (id: string) => {
@@ -98,21 +111,34 @@ const Menu = () => {
     return item?.quantity || 0;
   };
 
-  const handleAddToCart = (item: any) => {
-    addItem({
+  const handleItemClick = (item: any) => {
+    setSelectedItem(item);
+    setIsModalOpen(true);
+  };
+
+  const handleAddToCart = (item: any, addons: SelectedAddon[], totalPrice: number) => {
+    const addonsTotal = addons.reduce((sum, a) => sum + a.price * a.quantity, 0);
+    
+    addItemWithAddons({
       id: item.id,
       title: item.title,
       price: Number(item.price),
       image_url: item.image_url,
-    });
-    toast.success(`${item.title} added to cart!`);
+      addons: addons.length > 0 ? addons : undefined,
+      addonsTotal: addonsTotal > 0 ? addonsTotal : undefined,
+    }, item.quantity || 1);
+    
+    const addonNames = addons.length > 0 
+      ? ` with ${addons.map(a => a.name).join(', ')}`
+      : '';
+    toast.success(`${item.title}${addonNames} added to cart!`);
   };
 
-  const handleQuantityChange = (id: string, newQuantity: number) => {
+  const handleQuantityChange = (cartItemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      removeItem(id);
+      removeItem(cartItemId);
     } else {
-      updateQuantity(id, newQuantity);
+      updateQuantity(cartItemId, newQuantity);
     }
   };
 
@@ -158,20 +184,27 @@ const Menu = () => {
                   <>
                     <div className="flex-1 overflow-y-auto space-y-4">
                       {items.map((item) => (
-                        <div key={item.id} className="flex items-center gap-4 bg-muted/50 rounded-xl p-4">
-                          <div className="w-16 h-16 rounded-lg bg-card flex items-center justify-center text-2xl">
+                        <div key={item.cartItemId || item.id} className="flex items-start gap-4 bg-muted/50 rounded-xl p-4">
+                          <div className="w-16 h-16 rounded-lg bg-card flex items-center justify-center text-2xl shrink-0">
                             🍗
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold truncate">{item.title}</p>
-                            <p className="text-secondary font-bold">${(item.price * item.quantity).toFixed(2)}</p>
+                            {item.addons && item.addons.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                + {item.addons.map(a => `${a.quantity}x ${a.name}`).join(', ')}
+                              </p>
+                            )}
+                            <p className="text-secondary font-bold mt-1">
+                              ${((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}
+                            </p>
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="icon"
                               className="h-8 w-8 rounded-full"
-                              onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                              onClick={() => handleQuantityChange(item.cartItemId || item.id, item.quantity - 1)}
                             >
                               <Minus className="h-4 w-4" />
                             </Button>
@@ -180,7 +213,7 @@ const Menu = () => {
                               variant="outline"
                               size="icon"
                               className="h-8 w-8 rounded-full"
-                              onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                              onClick={() => handleQuantityChange(item.cartItemId || item.id, item.quantity + 1)}
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
@@ -301,11 +334,14 @@ const Menu = () => {
             </div>
           ) : (
             filteredItems.map((item) => {
-              const quantity = getItemQuantity(item.id);
               const isLowStock = item.stock_quantity !== null && item.stock_quantity < 10;
 
               return (
-                <div key={item.id} className="card-menu group">
+                <div 
+                  key={item.id} 
+                  className="card-menu group cursor-pointer"
+                  onClick={() => handleItemClick(item)}
+                >
                   {/* Image */}
                   <div className="relative h-40 bg-gradient-to-br from-muted to-background overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -320,6 +356,13 @@ const Menu = () => {
                       {isLowStock && (
                         <span className="badge-spicy">Only {item.stock_quantity} left!</span>
                       )}
+                    </div>
+
+                    {/* Info Icon */}
+                    <div className="absolute top-3 right-3">
+                      <div className="w-8 h-8 rounded-full bg-background/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Info className="h-4 w-4 text-primary" />
+                      </div>
                     </div>
                   </div>
 
@@ -336,36 +379,17 @@ const Menu = () => {
                         ${Number(item.price).toFixed(2)}
                       </span>
 
-                      {quantity === 0 ? (
-                        <Button
-                          onClick={() => handleAddToCart(item)}
-                          size="sm"
-                          className="bg-primary hover:bg-primary/90 rounded-full"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-2 bg-muted rounded-full p-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            onClick={() => handleQuantityChange(item.id, quantity - 1)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-6 text-center font-semibold">{quantity}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            onClick={() => handleQuantityChange(item.id, quantity + 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleItemClick(item);
+                        }}
+                        size="sm"
+                        className="bg-primary hover:bg-primary/90 rounded-full"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -386,6 +410,17 @@ const Menu = () => {
           </Link>
         </div>
       )}
+
+      {/* Item Details Modal */}
+      <ItemDetailsModal
+        item={selectedItem}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedItem(null);
+        }}
+        onAddToCart={handleAddToCart}
+      />
     </div>
   );
 };

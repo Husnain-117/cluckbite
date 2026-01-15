@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Minus, Trash2, User, Phone, Mail, CreditCard, Banknote, Calculator, Printer } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, User, Phone, Mail, CreditCard, Banknote, Calculator, Printer, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
+import ItemDetailsModal, { SelectedAddon } from '@/components/menu/ItemDetailsModal';
 
 interface CartItem {
   id: string;
@@ -24,6 +25,9 @@ interface CartItem {
   price: number;
   quantity: number;
   category: string;
+  cartItemId: string;
+  addons?: SelectedAddon[];
+  addonsTotal?: number;
 }
 
 type PaymentMethod = 'cash' | 'card' | 'split';
@@ -50,6 +54,10 @@ const WalkInOrders = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
+  
+  // Item details modal
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
 
   const { data: menuItems = [], isLoading } = useQuery({
     queryKey: ['menu-items'],
