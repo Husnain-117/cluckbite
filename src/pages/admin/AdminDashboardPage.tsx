@@ -16,23 +16,35 @@ const AdminDashboardPage = () => {
   const { user, isAdmin, loading } = useAdminAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
-    if (!loading && (!user || !isAdmin)) {
-      navigate('/admin/login');
+    // Only redirect once when loading is complete and user is not admin
+    if (!loading && !hasRedirected && (!user || !isAdmin)) {
+      setHasRedirected(true);
+      navigate('/admin/login', { replace: true });
     }
-  }, [user, isAdmin, loading, navigate]);
+  }, [user, isAdmin, loading, navigate, hasRedirected]);
 
+  // Show loading state while checking auth
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+          <p className="text-muted-foreground text-sm">Verifying admin access...</p>
+        </div>
       </div>
     );
   }
 
+  // Show nothing while redirecting (prevents flash)
   if (!user || !isAdmin) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Redirecting to login...</p>
+      </div>
+    );
   }
 
   const renderContent = () => {
