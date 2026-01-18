@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Store, Truck, CreditCard, Bell, Settings, Clock, AlertTriangle, Calendar } from 'lucide-react';
+import { Save, Store, Truck, CreditCard, Bell, Settings, Clock, AlertTriangle, Share2, Instagram, Facebook, Twitter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import {
   OperatingHours,
   EmergencyClosure,
   DeliverySettings,
+  SocialLinks,
   DayHours
 } from '@/hooks/useRestaurantSettings';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,12 @@ const AdminSettings = () => {
   const [operatingHours, setOperatingHours] = useState<OperatingHours | null>(null);
   const [emergencyClosure, setEmergencyClosure] = useState<EmergencyClosure | null>(null);
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings | null>(null);
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>({
+    instagram: '',
+    facebook: '',
+    tiktok: '',
+    twitter: ''
+  });
 
   const [restaurantSettings, setRestaurantSettings] = useState({
     name: 'Cluck Bite',
@@ -48,6 +55,9 @@ const AdminSettings = () => {
       setOperatingHours(settings.operatingHours);
       setEmergencyClosure(settings.emergencyClosure);
       setDeliverySettings(settings.deliverySettings);
+      if (settings.socialLinks) {
+        setSocialLinks(settings.socialLinks);
+      }
     }
   }, [settings]);
 
@@ -69,6 +79,10 @@ const AdminSettings = () => {
     }
   };
 
+  const handleSaveSocialLinks = () => {
+    updateSetting.mutate({ key: 'social_links', value: socialLinks });
+  };
+
   const updateDayHours = (day: typeof DAYS[number], field: keyof DayHours, value: any) => {
     if (!operatingHours) return;
     setOperatingHours({
@@ -85,6 +99,7 @@ const AdminSettings = () => {
     { id: 'hours', label: 'Hours', icon: Clock },
     { id: 'emergency', label: 'Emergency', icon: AlertTriangle },
     { id: 'delivery', label: 'Delivery', icon: Truck },
+    { id: 'social', label: 'Social', icon: Share2 },
     { id: 'payment', label: 'Payment', icon: CreditCard },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'system', label: 'System', icon: Settings },
@@ -337,7 +352,7 @@ const AdminSettings = () => {
                 </div>
 
                 <div className="p-4 bg-muted/50 rounded-xl">
-                  <h4 className="font-medium mb-2">Delivery Charge Tiers</h4>
+                  <h4 className="font-medium mb-2">Delivery Charge Tiers (Miles)</h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• Up to 3 miles: £1.50</li>
                     <li>• 3-4 miles: £2.50</li>
@@ -354,12 +369,82 @@ const AdminSettings = () => {
                       </span>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">Cardiff and surrounding areas</p>
+                  <p className="text-xs text-muted-foreground">Cardiff and surrounding areas (CF, NP postcodes)</p>
                 </div>
               </div>
               <Button onClick={handleSaveDeliverySettings} className="btn-primary" disabled={updateSetting.isPending}>
                 <Save className="h-4 w-4 mr-2" />
                 {updateSetting.isPending ? 'Saving...' : 'Save Delivery Settings'}
+              </Button>
+            </div>
+          )}
+
+          {activeTab === 'social' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-heading font-semibold">Social Media Links</h3>
+                <p className="text-sm text-muted-foreground">Add your social media links - they'll appear in the website footer</p>
+              </div>
+              
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Instagram className="h-4 w-4 text-pink-500" />
+                    Instagram
+                  </Label>
+                  <Input
+                    value={socialLinks.instagram}
+                    onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
+                    placeholder="https://instagram.com/your-page"
+                    className="input-styled"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Facebook className="h-4 w-4 text-blue-600" />
+                    Facebook
+                  </Label>
+                  <Input
+                    value={socialLinks.facebook}
+                    onChange={(e) => setSocialLinks({ ...socialLinks, facebook: e.target.value })}
+                    placeholder="https://facebook.com/your-page"
+                    className="input-styled"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                    </svg>
+                    TikTok
+                  </Label>
+                  <Input
+                    value={socialLinks.tiktok}
+                    onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
+                    placeholder="https://tiktok.com/@your-page"
+                    className="input-styled"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Twitter className="h-4 w-4 text-sky-500" />
+                    Twitter / X
+                  </Label>
+                  <Input
+                    value={socialLinks.twitter}
+                    onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
+                    placeholder="https://twitter.com/your-page"
+                    className="input-styled"
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleSaveSocialLinks} className="btn-primary" disabled={updateSetting.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                {updateSetting.isPending ? 'Saving...' : 'Save Social Links'}
               </Button>
             </div>
           )}
@@ -436,21 +521,26 @@ const AdminSettings = () => {
               <h3 className="text-lg font-heading font-semibold">System Settings</h3>
               <div className="space-y-4">
                 <div className="p-4 bg-muted rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium">Database Status</p>
-                    <span className="flex items-center gap-2 text-green-500">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      Connected
-                    </span>
+                  <p className="font-medium mb-2">Order Number Format</p>
+                  <p className="text-sm text-muted-foreground mb-3">Order numbers reset daily starting from 001</p>
+                  <div className="flex gap-2 text-sm">
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg font-mono">WLK-001</span>
+                    <span className="px-3 py-1 bg-blue-500/10 text-blue-500 rounded-lg font-mono">PHN-002</span>
+                    <span className="px-3 py-1 bg-green-500/10 text-green-500 rounded-lg font-mono">ORD-003</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">Cluck Bite Cloud Database</p>
                 </div>
+
                 <div className="p-4 bg-muted rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium">Order Number Format</p>
-                    <span className="font-mono text-sm">ORD-{'{DATE}'}-{'{RANDOM}'}</span>
+                  <p className="font-medium mb-2">Database Information</p>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>Connected to Lovable Cloud</p>
+                    <p>Real-time sync enabled</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">Auto-generated order numbers</p>
+                </div>
+
+                <div className="p-4 bg-muted rounded-xl">
+                  <p className="font-medium mb-2">Version</p>
+                  <p className="text-sm text-muted-foreground">Cluck Bite POS v2.0</p>
                 </div>
               </div>
             </div>
