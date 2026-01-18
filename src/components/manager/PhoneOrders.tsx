@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, Phone, MapPin, Truck, CreditCard, Banknote, Calculator, Printer, History, ChevronDown, ChevronUp, ShoppingBag, AlertCircle } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Phone, Truck, CreditCard, Banknote, Calculator, Printer, History, ChevronDown, ChevronUp, ShoppingBag, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,7 +28,7 @@ import {
   useRestaurantSettings, 
   getDeliveryCharge, 
   isPostcodeInRange,
-  isRestaurantOpen 
+  generateDailyOrderNumber
 } from '@/hooks/useRestaurantSettings';
 
 interface CartItem {
@@ -50,7 +50,7 @@ const PhoneOrders = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   
-  // Customer info - Reordered: Phone first, then Postcode
+  // Customer info - Phone first, then Postcode
   const [customerPhone, setCustomerPhone] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -70,7 +70,8 @@ const PhoneOrders = () => {
   
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
-  const [splitAmount, setSplitAmount] = useState('');
+  const [splitCardAmount, setSplitCardAmount] = useState('');
+  const [splitCashAmount, setSplitCashAmount] = useState('');
   
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,7 +127,6 @@ const PhoneOrders = () => {
         }
         if (!postalCode && orders[0].pin_location) {
           setPostalCode(orders[0].pin_location);
-          // Auto-calculate for returning customer
           handleCalculateDistance(orders[0].pin_location);
         }
         setShowHistory(true);
@@ -178,7 +178,7 @@ const PhoneOrders = () => {
     setPostcodeError(null);
     setDistance(result.distance);
     setDeliveryCharges(getDeliveryCharge(result.distance!));
-    toast.success(`Delivery: £${getDeliveryCharge(result.distance!).toFixed(2)} (${result.distance} mi)`);
+    toast.success(`Delivery: £${getDeliveryCharge(result.distance!).toFixed(2)} (${result.distance} miles)`);
   };
 
   const categories = useMemo(() => ['all', ...new Set(menuItems.map((item) => item.category))], [menuItems]);
@@ -201,8 +201,9 @@ const PhoneOrders = () => {
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price + (item.addonsTotal || 0)) * item.quantity, 0);
   const total = subtotal + deliveryCharges;
-  const amountPaidOnline = paymentMethod === 'card' ? total : paymentMethod === 'split' ? parseFloat(splitAmount) || 0 : 0;
-  const amountDueCod = paymentMethod === 'cash' ? total : paymentMethod === 'split' ? total - amountPaidOnline : 0;
+  
+  const cardAmount = paymentMethod === 'card' ? total : paymentMethod === 'split' ? (parseFloat(splitCardAmount) || 0) : 0;
+  const cashAmount = paymentMethod === 'cash' ? total : paymentMethod === 'split' ? (parseFloat(splitCashAmount) || 0) : 0;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleAddToCartWithAddons = (item: any, addons: SelectedAddon[], totalPrice: number) => {
@@ -226,20 +227,14 @@ const PhoneOrders = () => {
     setPostalCode('');
     setSpecialInstructions('');
     setPaymentMethod('cash');
-    setSplitAmount('');
+    setSplitCardAmount('');
+    setSplitCashAmount('');
     setDistance(null);
     setDeliveryCharges(0);
     setPostcodeError(null);
     setCustomerHistory([]);
     setFoundCustomer(null);
     setShowHistory(false);
-  };
-
-  const generateOrderNumber = () => {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `PHN-${dateStr}-${random}`;
   };
 
   const handlePlaceOrder = async () => {
@@ -253,7 +248,8 @@ const PhoneOrders = () => {
 
     setIsSubmitting(true);
     try {
-      const orderNumber = generateOrderNumber();
+      const orderNumber = await generateDailyOrderNumber('PHN');
+      
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -272,8 +268,8 @@ const PhoneOrders = () => {
           total_amount: total,
           payment_method: paymentMethod,
           payment_status: paymentMethod === 'cash' ? 'pending' : paymentMethod === 'card' ? 'completed' : 'partial',
-          amount_paid_online: amountPaidOnline,
-          amount_due_cod: amountDueCod,
+          amount_paid_online: cardAmount,
+          amount_due_cod: cashAmount,
           order_status: 'approved',
           special_instructions: specialInstructions || null,
         })
@@ -312,7 +308,7 @@ const PhoneOrders = () => {
     if (!completedOrder) return;
     const w = window.open('', '_blank');
     if (w) {
-      w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;padding:20px;max-width:300px;margin:0 auto}h1{text-align:center;font-size:20px}.header{text-align:center;margin-bottom:15px}.divider{border-top:1px dashed #000;margin:8px 0}.item{display:flex;justify-content:space-between;margin:3px 0}.total{font-weight:bold}</style></head><body><div class="header"><h1>Cluck Bite</h1><p>Phone Order - DELIVERY</p></div><div class="divider"></div><p><b>Order:</b> ${completedOrder.order_number}</p><p><b>Date:</b> ${format(new Date(), 'PPpp')}</p><p><b>Customer:</b> ${customerName}</p><p><b>Phone:</b> ${customerPhone}</p><p><b>Address:</b><br/>${deliveryAddress}<br/>${postalCode}</p><div class="divider"></div>${cart.map(item => `<div class="item"><span>${item.quantity}x ${item.title}</span><span>£${((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}</span></div>`).join('')}<div class="divider"></div><div class="item"><span>Subtotal</span><span>£${subtotal.toFixed(2)}</span></div><div class="item"><span>Delivery (${distance} mi)</span><span>£${deliveryCharges.toFixed(2)}</span></div><div class="item total"><span>Total</span><span>£${total.toFixed(2)}</span></div><div class="divider"></div><p style="text-align:center">Payment: ${paymentMethod.toUpperCase()}</p>${amountDueCod > 0 ? `<p style="text-align:center;font-weight:bold;color:red">COLLECT: £${amountDueCod.toFixed(2)}</p>` : ''}</body></html>`);
+      w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;padding:20px;max-width:300px;margin:0 auto}h1{text-align:center;font-size:20px}.header{text-align:center;margin-bottom:15px}.divider{border-top:1px dashed #000;margin:8px 0}.item{display:flex;justify-content:space-between;margin:3px 0}.total{font-weight:bold}</style></head><body><div class="header"><h1>Cluck Bite</h1><p>Phone Order - DELIVERY</p></div><div class="divider"></div><p><b>Order:</b> ${completedOrder.order_number}</p><p><b>Date:</b> ${format(new Date(), 'PPpp')}</p><p><b>Customer:</b> ${customerName}</p><p><b>Phone:</b> ${customerPhone}</p><p><b>Address:</b><br/>${deliveryAddress}<br/>${postalCode}</p><div class="divider"></div>${cart.map(item => `<div class="item"><span>${item.quantity}x ${item.title}</span><span>£${((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}</span></div>`).join('')}<div class="divider"></div><div class="item"><span>Subtotal</span><span>£${subtotal.toFixed(2)}</span></div><div class="item"><span>Delivery (${distance} mi)</span><span>£${deliveryCharges.toFixed(2)}</span></div><div class="item total"><span>Total</span><span>£${total.toFixed(2)}</span></div><div class="divider"></div><p style="text-align:center">Payment: ${paymentMethod.toUpperCase()}</p>${cashAmount > 0 ? `<p style="text-align:center;font-weight:bold;color:red">COLLECT: £${cashAmount.toFixed(2)}</p>` : ''}</body></html>`);
       w.document.close();
       w.print();
     }
@@ -327,21 +323,21 @@ const PhoneOrders = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col">
+    <div className="h-[calc(100vh-120px)] flex flex-col overflow-hidden">
       {/* Status Banner */}
-      <RestaurantStatusBanner className="mb-3 rounded-lg" />
+      <RestaurantStatusBanner className="mb-2 rounded-lg flex-shrink-0" />
 
-      {/* Main Layout - Side by Side */}
-      <div className="flex-1 flex gap-4 min-h-0">
-        {/* Left: Menu */}
-        <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Layout - Fixed Side by Side */}
+      <div className="flex-1 flex gap-3 min-h-0 overflow-hidden">
+        {/* Left: Menu Section */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Categories */}
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-hide">
+          <div className="flex gap-1.5 pb-2 overflow-x-auto scrollbar-hide flex-shrink-0">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                   selectedCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
                 }`}
               >
@@ -351,40 +347,40 @@ const PhoneOrders = () => {
           </div>
 
           {/* Search */}
-          <div className="relative mb-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative mb-2 flex-shrink-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search items..."
-              className="input-styled pl-10 h-9"
+              placeholder="Search..."
+              className="input-styled pl-8 h-8 text-sm"
             />
           </div>
 
-          {/* Menu Grid */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Menu Grid - Scrollable */}
+          <div className="flex-1 overflow-y-auto min-h-0">
             {isLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
+                {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
                 {filteredItems.map((item) => {
                   const inCart = cart.filter((c) => c.id === item.id).reduce((sum, c) => sum + c.quantity, 0);
                   return (
                     <button
                       key={item.id}
                       onClick={() => { setSelectedItem(item); setIsItemModalOpen(true); }}
-                      className="card-elevated p-2.5 text-left hover:border-primary/50 transition-all relative active:scale-95"
+                      className="card-elevated p-2 text-left hover:border-primary/50 transition-all relative active:scale-95"
                     >
                       {inCart > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{inCart}</span>
+                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">{inCart}</span>
                       )}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{categoryEmojis[item.category] || '🍽️'}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-lg">{categoryEmojis[item.category] || '🍽️'}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate text-sm">{item.title}</p>
-                          <p className="text-secondary font-bold text-sm">£{Number(item.price).toFixed(2)}</p>
+                          <p className="font-medium truncate text-xs">{item.title}</p>
+                          <p className="text-secondary font-bold text-xs">£{Number(item.price).toFixed(2)}</p>
                         </div>
                       </div>
                     </button>
@@ -395,38 +391,39 @@ const PhoneOrders = () => {
           </div>
         </div>
 
-        {/* Right: Checkout Panel - Always Visible */}
-        <div className="w-80 xl:w-96 flex flex-col card-elevated p-4 overflow-hidden">
-          <div className="flex-1 overflow-y-auto space-y-3">
+        {/* Right: Checkout Panel - Fixed Width */}
+        <div className="w-72 xl:w-80 flex flex-col card-elevated p-3 overflow-hidden flex-shrink-0">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
             {/* Cart Header */}
             <div className="flex items-center justify-between">
-              <h3 className="font-heading font-semibold flex items-center gap-2">
+              <h3 className="font-heading font-semibold text-sm flex items-center gap-1.5">
                 <ShoppingBag className="h-4 w-4 text-primary" />
                 Cart ({cartItemCount})
               </h3>
               {cart.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive h-7 text-xs">
+                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive h-6 text-xs px-2">
                   <Trash2 className="h-3 w-3 mr-1" />Clear
                 </Button>
               )}
             </div>
 
             {/* Cart Items */}
-            <div className="max-h-32 overflow-y-auto">
+            <div className="max-h-24 overflow-y-auto">
               {cart.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4 text-sm">Tap items to add</p>
+                <p className="text-muted-foreground text-center py-3 text-xs">Tap items to add</p>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   {cart.map((item) => (
-                    <div key={item.cartItemId} className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+                    <div key={item.cartItemId} className="flex items-center justify-between bg-muted/50 rounded-lg p-1.5">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate text-xs">{item.title}</p>
-                        <p className="text-xs text-secondary">£{((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}</p>
+                        <p className="font-medium truncate text-[11px]">{item.title}</p>
+                        <p className="text-[10px] text-secondary">£{((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}</p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}><Minus className="h-3 w-3" /></Button>
-                        <span className="w-5 text-center text-xs font-medium">{item.quantity}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}><Minus className="h-2.5 w-2.5" /></Button>
+                        <span className="w-4 text-center text-[10px] font-medium">{item.quantity}</span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}><Plus className="h-2.5 w-2.5" /></Button>
                       </div>
                     </div>
                   ))}
@@ -434,10 +431,10 @@ const PhoneOrders = () => {
               )}
             </div>
 
-            {/* Customer Section - Phone & Postcode First */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <h4 className="font-heading font-semibold text-sm flex items-center gap-1">
-                <Phone className="h-4 w-4 text-primary" />
+            {/* Customer Section */}
+            <div className="space-y-1.5 pt-2 border-t border-border">
+              <h4 className="font-heading font-semibold text-xs flex items-center gap-1">
+                <Phone className="h-3 w-3 text-primary" />
                 Customer
               </h4>
               
@@ -447,38 +444,36 @@ const PhoneOrders = () => {
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="07XXX XXX XXX *"
-                  className="input-styled h-8 text-sm"
+                  className="input-styled h-7 text-xs"
                 />
                 {isLoadingHistory && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
                     <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-primary" />
                   </div>
                 )}
               </div>
 
-              {/* Postal Code - Second Position */}
+              {/* Postal Code */}
               <div>
-                <div className="flex gap-2">
-                  <Input
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
-                    placeholder="Postcode (e.g., CF5 1AA) *"
-                    className={`input-styled h-8 text-sm flex-1 ${postcodeError ? 'border-destructive' : distance !== null ? 'border-green-500' : ''}`}
-                  />
-                </div>
+                <Input
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+                  placeholder="Postcode (e.g., CF5 1AA) *"
+                  className={`input-styled h-7 text-xs ${postcodeError ? 'border-destructive' : distance !== null ? 'border-green-500' : ''}`}
+                />
                 {postcodeError && (
-                  <div className="flex items-center gap-1 mt-1 text-destructive text-xs">
-                    <AlertCircle className="h-3 w-3" />
+                  <div className="flex items-center gap-1 mt-1 text-destructive text-[10px]">
+                    <AlertCircle className="h-2.5 w-2.5" />
                     <span>{postcodeError}</span>
                   </div>
                 )}
                 {distance !== null && !postcodeError && (
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2 mt-1">
-                    <div className="flex justify-between text-xs">
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-1.5 mt-1">
+                    <div className="flex justify-between text-[10px]">
                       <span className="text-muted-foreground">Distance:</span>
                       <span className="font-semibold">{distance} miles</span>
                     </div>
-                    <div className="flex justify-between text-xs">
+                    <div className="flex justify-between text-[10px]">
                       <span className="text-muted-foreground">Delivery:</span>
                       <span className="font-semibold text-primary">£{deliveryCharges.toFixed(2)}</span>
                     </div>
@@ -490,20 +485,20 @@ const PhoneOrders = () => {
               {foundCustomer && (
                 <Collapsible open={showHistory} onOpenChange={setShowHistory}>
                   <CollapsibleTrigger asChild>
-                    <button className="w-full flex items-center justify-between p-2 bg-green-500/10 border border-green-500/20 rounded-lg text-left">
-                      <div className="flex items-center gap-1.5">
-                        <History className="h-3 w-3 text-green-500" />
-                        <span className="text-xs font-medium text-green-500">{foundCustomer.totalOrders} orders</span>
+                    <button className="w-full flex items-center justify-between p-1.5 bg-green-500/10 border border-green-500/20 rounded-lg text-left">
+                      <div className="flex items-center gap-1">
+                        <History className="h-2.5 w-2.5 text-green-500" />
+                        <span className="text-[10px] font-medium text-green-500">{foundCustomer.totalOrders} orders</span>
                       </div>
                       {showHistory ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     </button>
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-1.5">
-                    <div className="p-2 bg-muted/50 rounded-lg space-y-1 text-xs max-h-24 overflow-y-auto">
+                  <CollapsibleContent className="mt-1">
+                    <div className="p-1.5 bg-muted/50 rounded-lg space-y-1 text-[10px] max-h-16 overflow-y-auto">
                       {customerHistory.slice(0, 3).map((order) => (
                         <div key={order.id} className="flex justify-between items-center">
                           <span className="text-muted-foreground">{format(new Date(order.created_at), 'dd/MM')}</span>
-                          <Badge className={`${statusColors[order.order_status]} text-[10px]`}>{order.order_status}</Badge>
+                          <Badge className={`${statusColors[order.order_status]} text-[8px] px-1 py-0`}>{order.order_status}</Badge>
                           <span className="font-medium">£{Number(order.total_amount).toFixed(2)}</span>
                         </div>
                       ))}
@@ -512,33 +507,33 @@ const PhoneOrders = () => {
                 </Collapsible>
               )}
 
-              {/* Name & Address */}
+              {/* Name */}
               <Input
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Name *"
-                className="input-styled h-8 text-sm"
+                className="input-styled h-7 text-xs"
               />
             </div>
 
             {/* Delivery Address */}
-            <div className="space-y-2">
-              <h4 className="font-heading font-semibold text-sm flex items-center gap-1">
-                <Truck className="h-4 w-4 text-primary" />
+            <div className="space-y-1.5">
+              <h4 className="font-heading font-semibold text-xs flex items-center gap-1">
+                <Truck className="h-3 w-3 text-primary" />
                 Delivery
               </h4>
               <Textarea
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
                 placeholder="Full delivery address *"
-                className="input-styled min-h-[60px] text-sm"
+                className="input-styled min-h-[50px] text-xs"
               />
             </div>
 
             {/* Payment */}
-            <div className="space-y-2">
-              <h4 className="font-heading font-semibold text-sm">Payment</h4>
-              <div className="grid grid-cols-3 gap-1.5">
+            <div className="space-y-1.5">
+              <h4 className="font-heading font-semibold text-xs">Payment</h4>
+              <div className="grid grid-cols-3 gap-1">
                 {[
                   { id: 'cash', icon: Banknote, color: 'text-green-500', label: 'Cash' },
                   { id: 'card', icon: CreditCard, color: 'text-blue-500', label: 'Card' },
@@ -547,47 +542,70 @@ const PhoneOrders = () => {
                   <button
                     key={p.id}
                     onClick={() => setPaymentMethod(p.id as PaymentMethod)}
-                    className={`p-2 rounded-lg border text-center transition-all ${paymentMethod === p.id ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    className={`p-1.5 rounded-lg border text-center transition-all ${paymentMethod === p.id ? 'border-primary bg-primary/10' : 'border-border'}`}
                   >
-                    <p.icon className={`h-4 w-4 mx-auto ${p.color} mb-0.5`} />
-                    <span className="text-[10px] font-medium">{p.label}</span>
+                    <p.icon className={`h-3.5 w-3.5 mx-auto ${p.color}`} />
+                    <span className="text-[9px] font-medium">{p.label}</span>
                   </button>
                 ))}
               </div>
               {paymentMethod === 'split' && (
-                <div>
-                  <Label className="text-xs">Card (£)</Label>
-                  <Input type="number" value={splitAmount} onChange={(e) => setSplitAmount(e.target.value)} placeholder="0" className="input-styled h-8 text-sm" />
-                  {splitAmount && <p className="text-xs text-muted-foreground mt-1">Cash: £{(total - (parseFloat(splitAmount) || 0)).toFixed(2)}</p>}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div>
+                    <Label className="text-[10px] flex items-center gap-1"><CreditCard className="h-2.5 w-2.5" /> Card (£)</Label>
+                    <Input 
+                      type="number" 
+                      value={splitCardAmount} 
+                      onChange={(e) => {
+                        setSplitCardAmount(e.target.value);
+                        setSplitCashAmount((total - (parseFloat(e.target.value) || 0)).toFixed(2));
+                      }} 
+                      placeholder="0" 
+                      className="input-styled h-7 text-xs" 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] flex items-center gap-1"><Banknote className="h-2.5 w-2.5" /> Cash (£)</Label>
+                    <Input 
+                      type="number" 
+                      value={splitCashAmount} 
+                      onChange={(e) => {
+                        setSplitCashAmount(e.target.value);
+                        setSplitCardAmount((total - (parseFloat(e.target.value) || 0)).toFixed(2));
+                      }} 
+                      placeholder="0" 
+                      className="input-styled h-7 text-xs" 
+                    />
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Summary - Fixed at bottom */}
-          <div className="border-t border-border pt-3 mt-3 space-y-2">
-            <div className="flex justify-between text-xs">
+          <div className="border-t border-border pt-2 mt-2 space-y-1 flex-shrink-0">
+            <div className="flex justify-between text-[10px]">
               <span className="text-muted-foreground">Subtotal</span>
               <span>£{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Delivery</span>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-muted-foreground">Delivery ({distance || 0} mi)</span>
               <span>£{deliveryCharges.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between font-heading font-bold text-lg">
+            <div className="flex justify-between font-heading font-bold">
               <span>Total</span>
               <span className="text-primary">£{total.toFixed(2)}</span>
             </div>
-            {amountDueCod > 0 && (
-              <div className="flex justify-between text-xs bg-yellow-500/10 p-1.5 rounded">
+            {cashAmount > 0 && (
+              <div className="flex justify-between text-[10px] bg-yellow-500/10 p-1 rounded">
                 <span className="text-yellow-600">Collect on Delivery</span>
-                <span className="font-semibold text-yellow-600">£{amountDueCod.toFixed(2)}</span>
+                <span className="font-semibold text-yellow-600">£{cashAmount.toFixed(2)}</span>
               </div>
             )}
             <Button
               onClick={handlePlaceOrder}
               disabled={isSubmitting || cart.length === 0 || distance === null || !!postcodeError}
-              className="w-full btn-primary h-10"
+              className="w-full btn-primary h-9 text-sm"
             >
               {isSubmitting ? 'Processing...' : `Place Delivery • £${total.toFixed(2)}`}
             </Button>
@@ -615,7 +633,7 @@ const PhoneOrders = () => {
             <p className="text-lg font-mono font-bold text-primary mb-2">{completedOrder?.order_number}</p>
             <p className="text-muted-foreground text-sm">Delivery to {postalCode}</p>
             <p className="text-2xl font-heading font-bold text-secondary mt-3">£{total.toFixed(2)}</p>
-            {amountDueCod > 0 && <p className="text-yellow-600 font-medium mt-1">Collect: £{amountDueCod.toFixed(2)}</p>}
+            {cashAmount > 0 && <p className="text-yellow-600 font-medium mt-1">Collect: £{cashAmount.toFixed(2)}</p>}
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={printReceipt} className="flex-1"><Printer className="h-4 w-4 mr-2" />Print</Button>

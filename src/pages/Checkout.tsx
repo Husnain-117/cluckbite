@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { generateDailyOrderNumber } from '@/hooks/useRestaurantSettings';
 
 const customerSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -39,13 +40,6 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [splitCashAmount, setSplitCashAmount] = useState('');
   const [splitCardAmount, setSplitCardAmount] = useState('');
-
-  const generateOrderNumber = () => {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `ORD-${dateStr}-${random}`;
-  };
 
   const validateCustomerInfo = () => {
     try {
@@ -99,7 +93,7 @@ const Checkout = () => {
     setIsSubmitting(true);
 
     try {
-      const orderNumber = generateOrderNumber();
+      const orderNumber = await generateDailyOrderNumber('ORD');
       const { amountPaidOnline, amountDueCod } = calculatePaymentAmounts();
 
       // Create order
@@ -155,7 +149,7 @@ const Checkout = () => {
         {
           recipient_role: 'admin',
           order_id: order.id,
-          message: `New order #${orderNumber} - Total: $${total.toFixed(2)}`,
+          message: `New order #${orderNumber} - Total: £${total.toFixed(2)}`,
         },
       ]);
 
@@ -257,7 +251,7 @@ const Checkout = () => {
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                   </div>
                   <p className="font-bold text-secondary">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    £{(item.price * item.quantity).toFixed(2)}
                   </p>
                 </div>
               ))}
@@ -267,18 +261,18 @@ const Checkout = () => {
             <div className="card-elevated p-6 space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>£{subtotal.toFixed(2)}</span>
               </div>
               {deliveryCharges > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery Charges</span>
-                  <span>${deliveryCharges.toFixed(2)}</span>
+                  <span>£{deliveryCharges.toFixed(2)}</span>
                 </div>
               )}
               <div className="border-t border-border pt-3 flex justify-between">
                 <span className="font-heading font-bold text-lg">Total</span>
                 <span className="font-heading font-bold text-lg text-secondary">
-                  ${total.toFixed(2)}
+                  £{total.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -370,7 +364,7 @@ const Checkout = () => {
                     <p className="font-semibold">Pay by Card</p>
                     <p className="text-sm text-muted-foreground">Pay full amount online</p>
                   </div>
-                  <span className="font-bold text-secondary">${total.toFixed(2)}</span>
+                  <span className="font-bold text-secondary">£{total.toFixed(2)}</span>
                 </label>
               </div>
 
@@ -387,7 +381,7 @@ const Checkout = () => {
                     <p className="font-semibold">Pay Later</p>
                     <p className="text-sm text-muted-foreground">Pay when you receive your order</p>
                   </div>
-                  <span className="font-bold text-secondary">${total.toFixed(2)}</span>
+                  <span className="font-bold text-secondary">£{total.toFixed(2)}</span>
                 </label>
               </div>
 
@@ -410,7 +404,7 @@ const Checkout = () => {
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <Label htmlFor="splitCardAmount" className="text-sm flex items-center gap-1">
-                              <CreditCard className="h-3 w-3" /> Card ($)
+                              <CreditCard className="h-3 w-3" /> Card (£)
                             </Label>
                             <Input
                               id="splitCardAmount"
@@ -430,7 +424,7 @@ const Checkout = () => {
                           </div>
                           <div>
                             <Label htmlFor="splitCashAmount" className="text-sm flex items-center gap-1">
-                              <Banknote className="h-3 w-3" /> Cash ($)
+                              <Banknote className="h-3 w-3" /> Cash (£)
                             </Label>
                             <Input
                               id="splitCashAmount"
@@ -449,18 +443,14 @@ const Checkout = () => {
                             />
                           </div>
                         </div>
-                        <div className="bg-muted/50 rounded-lg p-3 space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground flex items-center gap-1">
-                              <CreditCard className="h-3 w-3" /> Pay by Card
-                            </span>
-                            <span className="font-semibold">${amountPaidOnline.toFixed(2)}</span>
+                        <div className="text-sm bg-muted/50 p-3 rounded-lg space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Pay Online:</span>
+                            <span className="font-semibold text-blue-500">£{(parseFloat(splitCardAmount) || 0).toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground flex items-center gap-1">
-                              <Banknote className="h-3 w-3" /> Pay in Cash
-                            </span>
-                            <span className="font-semibold">${amountDueCod.toFixed(2)}</span>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Pay on Delivery:</span>
+                            <span className="font-semibold text-green-500">£{(parseFloat(splitCashAmount) || 0).toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
@@ -470,45 +460,44 @@ const Checkout = () => {
               </div>
             </RadioGroup>
 
-            {/* Payment Summary */}
+            {/* Summary */}
             <div className="card-elevated p-6 space-y-3">
-              <h3 className="font-heading font-semibold">Payment Summary</h3>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Pay by Card</span>
-                <span className="font-semibold">${amountPaidOnline.toFixed(2)}</span>
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>£{subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pay in Cash</span>
-                <span className="font-semibold">${amountDueCod.toFixed(2)}</span>
-              </div>
+              {deliveryCharges > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Delivery</span>
+                  <span>£{deliveryCharges.toFixed(2)}</span>
+                </div>
+              )}
               <div className="border-t border-border pt-3 flex justify-between">
-                <span className="font-heading font-bold">Total</span>
-                <span className="font-heading font-bold text-secondary">${total.toFixed(2)}</span>
+                <span className="font-heading font-bold text-lg">Total</span>
+                <span className="font-heading font-bold text-lg text-secondary">
+                  £{total.toFixed(2)}
+                </span>
               </div>
+              {paymentMethod === 'split' && (
+                <>
+                  <div className="flex justify-between text-sm text-blue-500">
+                    <span>Pay now (Card)</span>
+                    <span>£{amountPaidOnline.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-green-500">
+                    <span>Pay on delivery (Cash)</span>
+                    <span>£{amountDueCod.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
             </div>
-
-            {/* Demo Notice for Card Payment */}
-            {paymentMethod === 'card' && (
-              <div className="bg-muted/50 rounded-xl p-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  🔒 This is a demo. No actual payment will be processed.
-                </p>
-              </div>
-            )}
 
             <Button
               onClick={handleSubmitOrder}
               disabled={isSubmitting}
               className="w-full btn-primary py-6 text-lg"
             >
-              {isSubmitting ? (
-                <span className="flex items-center gap-2">
-                  <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary-foreground" />
-                  Processing...
-                </span>
-              ) : (
-                `Place Order • $${total.toFixed(2)}`
-              )}
+              {isSubmitting ? 'Processing...' : `Place Order • £${total.toFixed(2)}`}
             </Button>
           </div>
         )}

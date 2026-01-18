@@ -33,16 +33,74 @@ export interface DeliverySettings {
   supported_postcodes: string[];
 }
 
-// UK postcodes with distance from Cardiff Ely (miles)
+export interface SocialLinks {
+  instagram: string;
+  facebook: string;
+  tiktok: string;
+  twitter: string;
+}
+
+export interface DailyOrderCounter {
+  date: string;
+  counter: number;
+}
+
+// Comprehensive UK postcodes with distance from Cardiff Ely (1 Cowbridge Road West) in MILES
 export const cardiffPostcodeDistances: Record<string, number> = {
-  'CF5': 1.5, 'CF11': 2.5, 'CF14': 3.5, 'CF10': 3, 'CF24': 3.5,
-  'CF23': 4.5, 'CF3': 5, 'CF15': 5, 'CF64': 6, 'CF62': 7,
-  'CF63': 7.5, 'CF71': 8, 'CF83': 7, 'CF82': 8, 'CF37': 10,
-  'CF38': 9, 'CF72': 6, 'CF35': 12, 'CF31': 15, 'CF32': 14,
-  'CF33': 16, 'CF34': 17, 'CF39': 12, 'CF40': 11, 'CF41': 13,
-  'CF42': 14, 'CF43': 15, 'CF44': 16, 'CF45': 17, 'CF46': 10,
-  'CF47': 14, 'CF48': 15, 'NP10': 8, 'NP20': 12, 'NP19': 11,
-  'NP18': 9, 'NP44': 10,
+  // Cardiff City postcodes
+  'CF5': 1.5,   // Ely, Caerau, Fairwater
+  'CF11': 2.5,  // Canton, Riverside
+  'CF10': 3,    // City Centre
+  'CF14': 3.5,  // Llandaff, Whitchurch
+  'CF24': 3.5,  // Roath, Adamsdown
+  'CF23': 4.5,  // Penylan, Cyncoed
+  'CF3': 5,     // Rumney, Llanrumney
+  'CF15': 5,    // Radyr, Tongwynlais
+  'CF4': 4,     // Creigiau
+  // Vale of Glamorgan
+  'CF64': 6,    // Penarth
+  'CF62': 7,    // Barry
+  'CF63': 7.5,  // Barry
+  'CF61': 8,    // Llantwit Major
+  'CF71': 8,    // Cowbridge
+  // Caerphilly
+  'CF83': 7,    // Caerphilly
+  'CF82': 8,    // Ystrad Mynach
+  'CF81': 10,   // Bargoed
+  // Rhondda Cynon Taf
+  'CF37': 10,   // Pontypridd
+  'CF38': 9,    // Church Village
+  'CF72': 6,    // Llantrisant
+  'CF35': 12,   // Bridgend area
+  // Bridgend
+  'CF31': 15,   // Bridgend
+  'CF32': 14,   // Tondu
+  'CF33': 16,   // Pyle
+  'CF34': 17,   // Maesteg
+  'CF36': 16,   // Porthcawl
+  // Rhondda
+  'CF39': 12,   // Porth
+  'CF40': 11,   // Tonypandy
+  'CF41': 13,   // Pentre
+  'CF42': 14,   // Treorchy
+  'CF43': 15,   // Ferndale
+  'CF44': 16,   // Aberdare
+  'CF45': 17,   // Mountain Ash
+  'CF46': 10,   // Treharris
+  'CF47': 14,   // Merthyr Tydfil
+  'CF48': 15,   // Merthyr Tydfil
+  // Newport
+  'NP10': 8,    // Rogerstone
+  'NP19': 11,   // Newport
+  'NP20': 12,   // Newport
+  'NP18': 9,    // Caerleon
+  'NP44': 10,   // Cwmbran
+  'NP26': 14,   // Caldicot
+  // Extra Cardiff areas
+  'CF1': 3,     // Central
+  'CF2': 4,     // Heath
+  'CF6': 8,     // Vale of Glamorgan
+  'CF7': 6,     // Pontyclun area
 };
 
 export const getDeliveryCharge = (miles: number): number => {
@@ -53,6 +111,7 @@ export const getDeliveryCharge = (miles: number): number => {
 
 export const getDistanceFromPostcode = (postcode: string): { distance: number | null; outwardCode: string | null } => {
   const cleanPostcode = postcode.toUpperCase().replace(/\s/g, '');
+  // Match UK outward code: 1-2 letters + 1-2 digits (e.g., CF5, CF10, NP20)
   const outwardMatch = cleanPostcode.match(/^([A-Z]{1,2}\d{1,2})/);
   if (!outwardMatch) return { distance: null, outwardCode: null };
   const outwardCode = outwardMatch[1];
@@ -61,18 +120,22 @@ export const getDistanceFromPostcode = (postcode: string): { distance: number | 
 };
 
 export const isPostcodeInRange = (postcode: string, maxDistance: number): { inRange: boolean; distance: number | null; outwardCode: string | null; error?: string } => {
+  if (!postcode || postcode.trim().length < 2) {
+    return { inRange: false, distance: null, outwardCode: null, error: 'Please enter a valid postcode' };
+  }
+
   const { distance, outwardCode } = getDistanceFromPostcode(postcode);
   
   if (!outwardCode) {
-    return { inRange: false, distance: null, outwardCode: null, error: 'Invalid postcode format' };
+    return { inRange: false, distance: null, outwardCode: null, error: 'Invalid postcode format. Example: CF5 1AA' };
   }
   
   if (distance === null) {
-    return { inRange: false, distance: null, outwardCode, error: `Postcode ${outwardCode} is not in our delivery area` };
+    return { inRange: false, distance: null, outwardCode, error: `Sorry, we don't deliver to ${outwardCode}. We deliver to Cardiff and surrounding areas only.` };
   }
   
   if (distance > maxDistance) {
-    return { inRange: false, distance, outwardCode, error: `${outwardCode} is ${distance} miles away. We only deliver up to ${maxDistance} miles.` };
+    return { inRange: false, distance, outwardCode, error: `Sorry, ${outwardCode} is ${distance} miles away. We currently deliver up to ${maxDistance} miles from our restaurant.` };
   }
   
   return { inRange: true, distance, outwardCode };
@@ -97,9 +160,11 @@ export const useRestaurantSettings = () => {
         operatingHours: settings['operating_hours'] as OperatingHours,
         emergencyClosure: settings['emergency_closure'] as EmergencyClosure,
         deliverySettings: settings['delivery_settings'] as DeliverySettings,
+        socialLinks: settings['social_links'] as SocialLinks,
+        dailyOrderCounter: settings['daily_order_counter'] as DailyOrderCounter,
       };
     },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 };
 
@@ -123,6 +188,36 @@ export const useUpdateRestaurantSetting = () => {
       toast.error(`Failed to save: ${error.message}`);
     },
   });
+};
+
+// Generate daily order number (resets each day)
+export const generateDailyOrderNumber = async (prefix: string = 'ORD'): Promise<string> => {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  
+  // Get current counter
+  const { data } = await supabase
+    .from('restaurant_settings')
+    .select('setting_value')
+    .eq('setting_key', 'daily_order_counter')
+    .single();
+  
+  let counter = 1;
+  const currentData = data?.setting_value as unknown as DailyOrderCounter | null;
+  
+  if (currentData && currentData.date === today) {
+    counter = (currentData.counter || 0) + 1;
+  }
+  
+  // Update counter
+  await supabase
+    .from('restaurant_settings')
+    .update({ 
+      setting_value: { date: today, counter } 
+    })
+    .eq('setting_key', 'daily_order_counter');
+  
+  // Format: ORD-001, ORD-002, etc.
+  return `${prefix}-${counter.toString().padStart(3, '0')}`;
 };
 
 export const isRestaurantOpen = (operatingHours: OperatingHours, emergencyClosure: EmergencyClosure): { isOpen: boolean; message: string } => {
