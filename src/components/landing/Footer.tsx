@@ -175,6 +175,15 @@ const Footer = () => {
               )}
             </ul>
 
+            {/* Delivery Info */}
+            {settings?.deliverySettings && (
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  🚚 Delivery: {settings.deliverySettings.delivery_time_min || 30}-{settings.deliverySettings.delivery_time_max || 40} min
+                </p>
+              </div>
+            )}
+
             {/* Social Links */}
             <div className="mt-6">
               <p className="font-heading font-semibold mb-3">Follow Us</p>

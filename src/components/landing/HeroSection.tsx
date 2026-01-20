@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import { ArrowRight, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import OrderTypeModal from '@/components/modals/OrderTypeModal';
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 
 const HeroSection = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { data: settings } = useRestaurantSettings();
+  
+  const deliverySettings = settings?.deliverySettings;
+  const deliveryTimeMin = deliverySettings?.delivery_time_min || 30;
+  const deliveryTimeMax = deliverySettings?.delivery_time_max || 40;
 
   const scrollToMenu = () => {
     const element = document.querySelector('#menu');
@@ -64,11 +70,11 @@ const HeroSection = () => {
             <div className="flex flex-wrap gap-6 justify-center lg:justify-start">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-5 w-5 text-primary" />
-                <span>Free delivery within 5km</span>
+                <span>£2 for 3 mile delivery</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="h-5 w-5 text-primary" />
-                <span>20-30 min delivery</span>
+                <span>{deliveryTimeMin}-{deliveryTimeMax} min delivery</span>
               </div>
             </div>
           </div>

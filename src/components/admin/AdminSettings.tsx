@@ -351,6 +351,27 @@ const AdminSettings = () => {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Delivery Time Min (minutes)</Label>
+                    <Input
+                      type="number"
+                      value={deliverySettings.delivery_time_min || 30}
+                      onChange={(e) => setDeliverySettings({ ...deliverySettings, delivery_time_min: parseInt(e.target.value) || 30 })}
+                      className="input-styled"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Delivery Time Max (minutes)</Label>
+                    <Input
+                      type="number"
+                      value={deliverySettings.delivery_time_max || 40}
+                      onChange={(e) => setDeliverySettings({ ...deliverySettings, delivery_time_max: parseInt(e.target.value) || 40 })}
+                      className="input-styled"
+                    />
+                  </div>
+                </div>
+
                 <div className="p-4 bg-muted/50 rounded-xl">
                   <h4 className="font-medium mb-2">Delivery Charge Tiers (Miles)</h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
@@ -358,6 +379,16 @@ const AdminSettings = () => {
                     <li>• 3-4 miles: £2.50</li>
                     <li>• Above 4 miles: £2.50 + £1 per additional mile</li>
                   </ul>
+                </div>
+
+                <div className="p-4 bg-primary/10 rounded-xl">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Display Settings
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Delivery time ({deliverySettings.delivery_time_min || 30}-{deliverySettings.delivery_time_max || 40} min) will be shown on the landing page and footer.
+                  </p>
                 </div>
 
                 <div className="space-y-2">

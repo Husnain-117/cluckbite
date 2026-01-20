@@ -31,6 +31,8 @@ export interface DeliverySettings {
   max_distance_miles: number;
   base_charge: number;
   supported_postcodes: string[];
+  delivery_time_min: number;
+  delivery_time_max: number;
 }
 
 export interface SocialLinks {
@@ -156,10 +158,17 @@ export const useRestaurantSettings = () => {
         settings[row.setting_key] = row.setting_value;
       });
       
+      // Set default delivery times if not configured
+      const deliverySettings = settings['delivery_settings'] as DeliverySettings;
+      if (deliverySettings && !deliverySettings.delivery_time_min) {
+        deliverySettings.delivery_time_min = 30;
+        deliverySettings.delivery_time_max = 40;
+      }
+      
       return {
         operatingHours: settings['operating_hours'] as OperatingHours,
         emergencyClosure: settings['emergency_closure'] as EmergencyClosure,
-        deliverySettings: settings['delivery_settings'] as DeliverySettings,
+        deliverySettings,
         socialLinks: settings['social_links'] as SocialLinks,
         dailyOrderCounter: settings['daily_order_counter'] as DailyOrderCounter,
       };
