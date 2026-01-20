@@ -12,7 +12,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export interface SelectedAddon {
   id: string;
@@ -38,7 +37,7 @@ interface MealBuilderModalProps {
 // Define what categories are available for selection based on meal type
 const getMealConfig = (mealTitle: string) => {
   const title = mealTitle.toLowerCase();
-  
+
   if (title.includes('kids')) {
     return {
       steps: ['side', 'drink'],
@@ -47,7 +46,7 @@ const getMealConfig = (mealTitle: string) => {
       sideRequired: true,
     };
   }
-  
+
   if (title.includes('wrap')) {
     return {
       steps: ['burger', 'side', 'drink'],
@@ -56,7 +55,7 @@ const getMealConfig = (mealTitle: string) => {
       sideRequired: true,
     };
   }
-  
+
   if (title.includes('smash') || title.includes('solo smash') || title.includes('knockout')) {
     return {
       steps: ['burger', 'side', 'drink'],
@@ -65,7 +64,7 @@ const getMealConfig = (mealTitle: string) => {
       sideRequired: true,
     };
   }
-  
+
   // Default - chicken burgers
   return {
     steps: ['burger', 'side', 'drink'],
@@ -102,7 +101,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
         .select('*')
         .eq('is_available', true)
         .order('category', { ascending: true });
-      
+
       if (error) throw error;
       return data;
     },
@@ -123,7 +122,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
   const getCurrentStepItems = () => {
     if (!config) return [];
     const step = config.steps[activeStep];
-    
+
     if (step === 'burger') {
       const items: any[] = [];
       config.burgerCategories.forEach(cat => {
@@ -131,16 +130,16 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
       });
       return items;
     }
-    
+
     if (step === 'drink') {
       return itemsByCategory['Drinks'] || [];
     }
-    
+
     if (step === 'side') {
       // Default sides, but can upgrade
       return itemsByCategory['Fries'] || [];
     }
-    
+
     return [];
   };
 
@@ -277,20 +276,19 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
               £{Number(meal.price).toFixed(2)}
             </Badge>
           </div>
-          
+
           {/* Progress Steps */}
           <div className="flex items-center gap-2 mt-4">
             {config.steps.map((step, idx) => (
               <React.Fragment key={step}>
                 <button
                   onClick={() => setActiveStep(idx)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    idx === activeStep
-                      ? 'bg-primary text-primary-foreground'
-                      : isStepComplete(idx)
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${idx === activeStep
+                    ? 'bg-primary text-primary-foreground'
+                    : isStepComplete(idx)
                       ? 'bg-green-500/20 text-green-500'
                       : 'bg-muted text-muted-foreground'
-                  }`}
+                    }`}
                 >
                   {isStepComplete(idx) && idx !== activeStep && <Check className="h-3 w-3" />}
                   {step === 'burger' && '🍔'}
@@ -309,7 +307,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col p-4">
           <h3 className="text-lg font-semibold mb-3">{stepLabels[currentStep]}</h3>
-          
+
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -317,22 +315,21 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
               ))}
             </div>
           ) : (
-            <ScrollArea className="flex-1">
+            <div className="flex-1 overflow-y-auto pr-2">
               {/* Regular items */}
               {!showUpgradeOptions && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {currentItems.map((item) => {
                     const isSelected = selection[currentStep as keyof typeof selection]?.id === item.id;
-                    
+
                     return (
                       <button
                         key={item.id}
                         onClick={() => handleSelectItem(item, currentStep as any)}
-                        className={`p-3 rounded-xl border-2 text-left transition-all ${
-                          isSelected
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'
-                        }`}
+                        className={`p-3 rounded-xl border-2 text-left transition-all ${isSelected
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'
+                          }`}
                       >
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-2xl">{categoryEmojis[item.category] || '🍽️'}</span>
@@ -362,16 +359,15 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {upgradeItems.map((item) => {
                       const isSelected = selection.side?.id === item.id;
-                      
+
                       return (
                         <button
                           key={item.id}
                           onClick={() => handleUpgrade(item, 2.00)}
-                          className={`p-3 rounded-xl border-2 text-left transition-all ${
-                            isSelected
-                              ? 'border-primary bg-primary/10'
-                              : 'border-border hover:border-primary/50'
-                          }`}
+                          className={`p-3 rounded-xl border-2 text-left transition-all ${isSelected
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                            }`}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-2xl">{categoryEmojis[item.category] || '🍽️'}</span>
@@ -412,7 +408,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                   Back to regular sides
                 </Button>
               )}
-            </ScrollArea>
+            </div>
           )}
         </div>
 
@@ -472,7 +468,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                 Back
               </Button>
             )}
-            
+
             {!isLastStep() ? (
               <>
                 {currentStep !== 'burger' && (
@@ -480,8 +476,8 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                     Skip
                   </Button>
                 )}
-                <Button 
-                  onClick={handleNext} 
+                <Button
+                  onClick={handleNext}
                   disabled={!canProceed()}
                   className="flex-1 bg-primary"
                 >
@@ -490,7 +486,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                 </Button>
               </>
             ) : (
-              <Button 
+              <Button
                 onClick={handleAddToCart}
                 className="flex-1 btn-primary py-6 text-lg"
               >

@@ -25,9 +25,9 @@ import ItemDetailsModal, { SelectedAddon } from '@/components/menu/ItemDetailsMo
 import MealBuilderModal, { MealSelection } from '@/components/menu/MealBuilderModal';
 import { Badge } from '@/components/ui/badge';
 import RestaurantStatusBanner from '@/components/RestaurantStatusBanner';
-import { 
-  useRestaurantSettings, 
-  getDeliveryCharge, 
+import {
+  useRestaurantSettings,
+  getDeliveryCharge,
   isPostcodeInRange,
   generateDailyOrderNumber
 } from '@/hooks/useRestaurantSettings';
@@ -50,35 +50,35 @@ const PhoneOrders = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  
+
   // Customer info - Phone first, then Postcode
   const [customerPhone, setCustomerPhone] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
-  
+
   // Delivery calculation
   const [distance, setDistance] = useState<number | null>(null);
   const [deliveryCharges, setDeliveryCharges] = useState<number>(0);
   const [postcodeError, setPostcodeError] = useState<string | null>(null);
-  
+
   // Customer history
   const [customerHistory, setCustomerHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [foundCustomer, setFoundCustomer] = useState<any>(null);
-  
+
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [splitCardAmount, setSplitCardAmount] = useState('');
   const [splitCashAmount, setSplitCashAmount] = useState('');
-  
+
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
-  
+
   // Item details modal
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -113,9 +113,9 @@ const PhoneOrders = () => {
         .eq('customer_phone', phone)
         .order('created_at', { ascending: false })
         .limit(10);
-      
+
       if (error) throw error;
-      
+
       if (orders && orders.length > 0) {
         setCustomerHistory(orders);
         setFoundCustomer({
@@ -170,14 +170,14 @@ const PhoneOrders = () => {
     }
 
     const result = isPostcodeInRange(pc, maxDistance);
-    
+
     if (!result.inRange) {
       setPostcodeError(result.error || 'Invalid postcode');
       setDistance(null);
       setDeliveryCharges(0);
       return;
     }
-    
+
     setPostcodeError(null);
     setDistance(result.distance);
     setDeliveryCharges(getDeliveryCharge(result.distance!));
@@ -204,7 +204,7 @@ const PhoneOrders = () => {
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price + (item.addonsTotal || 0)) * item.quantity, 0);
   const total = subtotal + deliveryCharges;
-  
+
   const cardAmount = paymentMethod === 'card' ? total : paymentMethod === 'split' ? (parseFloat(splitCardAmount) || 0) : 0;
   const cashAmount = paymentMethod === 'cash' ? total : paymentMethod === 'split' ? (parseFloat(splitCashAmount) || 0) : 0;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -215,6 +215,37 @@ const PhoneOrders = () => {
     setIsItemModalOpen(false);
     setSelectedItem(null);
     toast.success(`${item.title} added`);
+  };
+
+  const handleMealAddToCart = (meal: any, selections: MealSelection, totalPrice: number) => {
+    // Build description from selections
+    const parts: string[] = [];
+    if (selections.burger) parts.push(selections.burger.title);
+    if (selections.side) parts.push(selections.side.title);
+    if (selections.drink) parts.push(selections.drink.title);
+
+    // Calculate upgrade costs
+    const upgradeCost = selections.upgrades.reduce((sum, u) => sum + u.priceDiff, 0);
+    const finalPrice = Number(meal.price) + upgradeCost;
+    const finalTitle = `${meal.title}${parts.length > 0 ? ` (${parts.join(', ')})` : ''}`;
+
+    setCart((prev) => [
+      ...prev,
+      {
+        id: meal.id,
+        title: finalTitle,
+        price: finalPrice,
+        quantity: 1,
+        category: meal.category,
+        cartItemId: crypto.randomUUID(),
+        addons: [],
+        addonsTotal: 0
+      }
+    ]);
+
+    setIsMealModalOpen(false);
+    setSelectedMeal(null);
+    toast.success(`${meal.title} added to cart!`);
   };
 
   const updateQuantity = (cartItemId: string, quantity: number) => {
@@ -252,7 +283,7 @@ const PhoneOrders = () => {
     setIsSubmitting(true);
     try {
       const orderNumber = await generateDailyOrderNumber('PHN');
-      
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -340,9 +371,8 @@ const PhoneOrders = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                  selectedCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
-                }`}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${selectedCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+                  }`}
               >
                 {cat === 'all' ? '🍽️ All' : `${categoryEmojis[cat] || '🍽️'} ${cat}`}
               </button>
@@ -448,7 +478,7 @@ const PhoneOrders = () => {
                 <Phone className="h-3 w-3 text-primary" />
                 Customer
               </h4>
-              
+
               {/* Phone Number */}
               <div className="relative">
                 <Input
@@ -564,28 +594,28 @@ const PhoneOrders = () => {
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
                     <Label className="text-[10px] flex items-center gap-1"><CreditCard className="h-2.5 w-2.5" /> Card (£)</Label>
-                    <Input 
-                      type="number" 
-                      value={splitCardAmount} 
+                    <Input
+                      type="number"
+                      value={splitCardAmount}
                       onChange={(e) => {
                         setSplitCardAmount(e.target.value);
                         setSplitCashAmount((total - (parseFloat(e.target.value) || 0)).toFixed(2));
-                      }} 
-                      placeholder="0" 
-                      className="input-styled h-7 text-xs" 
+                      }}
+                      placeholder="0"
+                      className="input-styled h-7 text-xs"
                     />
                   </div>
                   <div>
                     <Label className="text-[10px] flex items-center gap-1"><Banknote className="h-2.5 w-2.5" /> Cash (£)</Label>
-                    <Input 
-                      type="number" 
-                      value={splitCashAmount} 
+                    <Input
+                      type="number"
+                      value={splitCashAmount}
                       onChange={(e) => {
                         setSplitCashAmount(e.target.value);
                         setSplitCardAmount((total - (parseFloat(e.target.value) || 0)).toFixed(2));
-                      }} 
-                      placeholder="0" 
-                      className="input-styled h-7 text-xs" 
+                      }}
+                      placeholder="0"
+                      className="input-styled h-7 text-xs"
                     />
                   </div>
                 </div>
@@ -633,6 +663,17 @@ const PhoneOrders = () => {
           onAddToCart={handleAddToCartWithAddons}
         />
       )}
+
+      {/* Meal Builder Modal */}
+      <MealBuilderModal
+        meal={selectedMeal}
+        isOpen={isMealModalOpen}
+        onClose={() => {
+          setIsMealModalOpen(false);
+          setSelectedMeal(null);
+        }}
+        onAddToCart={handleMealAddToCart}
+      />
 
       {/* Success Modal */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
