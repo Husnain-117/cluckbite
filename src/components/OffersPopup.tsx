@@ -46,8 +46,8 @@ const OffersPopup = () => {
       if (lastDismissed) {
         const dismissedTime = new Date(lastDismissed).getTime();
         const now = new Date().getTime();
-        // Don't show for 1 hour after dismissal
-        if (now - dismissedTime < 60 * 60 * 1000) {
+        // Don't show for 5 minutes after dismissal
+        if (now - dismissedTime < 5 * 60 * 1000) {
           return;
         }
       }

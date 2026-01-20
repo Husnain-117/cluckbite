@@ -76,14 +76,15 @@ const OrderManagement = () => {
       filtered = filtered.filter((order) => order.order_status === statusFilter);
     }
 
-    // Search filter
+    // Search filter - support phone number, name, order number
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase().replace(/\s/g, '');
       filtered = filtered.filter(
         (order) =>
           order.order_number.toLowerCase().includes(query) ||
           order.customer_name.toLowerCase().includes(query) ||
-          order.customer_email.toLowerCase().includes(query)
+          order.customer_email.toLowerCase().includes(query) ||
+          order.customer_phone?.replace(/\s/g, '').includes(query)
       );
     }
 
@@ -133,7 +134,7 @@ const OrderManagement = () => {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search orders..."
+            placeholder="Search by name, phone, or order #..."
             className="input-styled pl-10 h-10"
           />
         </div>
