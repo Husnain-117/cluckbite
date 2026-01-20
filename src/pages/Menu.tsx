@@ -23,6 +23,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import ItemDetailsModal from '@/components/menu/ItemDetailsModal';
+import MealBuilderModal, { MealSelection } from '@/components/menu/MealBuilderModal';
 
 const Menu = () => {
   const { items, addItem, addItemWithAddons, updateQuantity, removeItem, subtotal, deliveryCharges, total, itemCount } = useCart();
@@ -31,6 +32,8 @@ const Menu = () => {
   const [sortBy, setSortBy] = useState('default');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<any>(null);
+  const [isMealModalOpen, setIsMealModalOpen] = useState(false);
 
   const { data: menuItems, isLoading } = useQuery({
     queryKey: ['menu-items'],
@@ -112,8 +115,33 @@ const Menu = () => {
   };
 
   const handleItemClick = (item: any) => {
-    setSelectedItem(item);
-    setIsModalOpen(true);
+    // Check if it's a Meal - use MealBuilderModal
+    if (item.category === 'Meals') {
+      setSelectedMeal(item);
+      setIsMealModalOpen(true);
+    } else {
+      setSelectedItem(item);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleMealAddToCart = (meal: any, selections: MealSelection, totalPrice: number) => {
+    // Build description from selections
+    const parts: string[] = [];
+    if (selections.burger) parts.push(selections.burger.title);
+    if (selections.side) parts.push(selections.side.title);
+    if (selections.drink) parts.push(selections.drink.title);
+    
+    const upgradeCost = selections.upgrades.reduce((sum, u) => sum + u.priceDiff, 0);
+    
+    addItemWithAddons({
+      id: meal.id,
+      title: `${meal.title}${parts.length > 0 ? ` (${parts.join(', ')})` : ''}`,
+      price: Number(meal.price) + upgradeCost,
+      image_url: meal.image_url,
+    }, 1);
+    
+    toast.success(`${meal.title} added to cart!`);
   };
 
   const handleAddToCart = (item: any, addons: SelectedAddon[], totalPrice: number) => {
@@ -420,6 +448,17 @@ const Menu = () => {
           setSelectedItem(null);
         }}
         onAddToCart={handleAddToCart}
+      />
+
+      {/* Meal Builder Modal */}
+      <MealBuilderModal
+        meal={selectedMeal}
+        isOpen={isMealModalOpen}
+        onClose={() => {
+          setIsMealModalOpen(false);
+          setSelectedMeal(null);
+        }}
+        onAddToCart={handleMealAddToCart}
       />
     </div>
   );

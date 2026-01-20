@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/collapsible";
 import { format } from 'date-fns';
 import ItemDetailsModal, { SelectedAddon } from '@/components/menu/ItemDetailsModal';
+import MealBuilderModal, { MealSelection } from '@/components/menu/MealBuilderModal';
 import { Badge } from '@/components/ui/badge';
 import RestaurantStatusBanner from '@/components/RestaurantStatusBanner';
 import { 
@@ -81,6 +82,8 @@ const PhoneOrders = () => {
   // Item details modal
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<any>(null);
+  const [isMealModalOpen, setIsMealModalOpen] = useState(false);
 
   // Restaurant settings
   const { data: settings } = useRestaurantSettings();
@@ -370,7 +373,15 @@ const PhoneOrders = () => {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => { setSelectedItem(item); setIsItemModalOpen(true); }}
+                      onClick={() => {
+                        if (item.category === 'Meals') {
+                          setSelectedMeal(item);
+                          setIsMealModalOpen(true);
+                        } else {
+                          setSelectedItem(item);
+                          setIsItemModalOpen(true);
+                        }
+                      }}
                       className="card-elevated p-2 text-left hover:border-primary/50 transition-all relative active:scale-95"
                     >
                       {inCart > 0 && (

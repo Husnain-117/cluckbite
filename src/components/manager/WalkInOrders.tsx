@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import ItemDetailsModal, { SelectedAddon } from '@/components/menu/ItemDetailsModal';
+import MealBuilderModal, { MealSelection } from '@/components/menu/MealBuilderModal';
 import RestaurantStatusBanner from '@/components/RestaurantStatusBanner';
 import { useRestaurantSettings, generateDailyOrderNumber } from '@/hooks/useRestaurantSettings';
 import { Switch } from '@/components/ui/switch';
@@ -61,6 +62,8 @@ const WalkInOrders = () => {
   // Item details modal
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<any>(null);
+  const [isMealModalOpen, setIsMealModalOpen] = useState(false);
 
   // Restaurant settings
   const { data: settings } = useRestaurantSettings();
@@ -258,7 +261,15 @@ const WalkInOrders = () => {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => { setSelectedItem(item); setIsItemModalOpen(true); }}
+                      onClick={() => {
+                        if (item.category === 'Meals') {
+                          setSelectedMeal(item);
+                          setIsMealModalOpen(true);
+                        } else {
+                          setSelectedItem(item);
+                          setIsItemModalOpen(true);
+                        }
+                      }}
                       className="card-elevated p-2 text-left hover:border-primary/50 transition-all relative active:scale-95"
                     >
                       {inCart > 0 && (
