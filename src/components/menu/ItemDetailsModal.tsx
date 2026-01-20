@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Plus, Minus, Info, AlertTriangle, Flame } from 'lucide-react';
+import { X, Plus, Minus, Info, AlertTriangle, Flame, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,9 +32,28 @@ interface ItemDetailsModalProps {
   onAddToCart: (item: any, addons: SelectedAddon[], totalPrice: number) => void;
 }
 
+// Categories that should show sauces
+const SAUCE_CATEGORIES = ['Doner'];
+
+// Addon category display config
+const ADDON_TAB_CONFIG = {
+  'Sauces': { emoji: '🥫', showFor: ['Doner'] },
+  'Extra Toppings': { emoji: '🧅', showFor: 'all' },
+  'Cheese Options': { emoji: '🧀', showFor: 'all' },
+  'Protein Add-ons': { emoji: '🍖', showFor: 'all' },
+  'Drinks Upgrades': { emoji: '🥤', showFor: 'all' },
+};
+
 const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsModalProps) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<Record<string, number>>({});
+  const [activeTab, setActiveTab] = useState<string>('info');
+
+  // Check if this item should show sauces
+  const shouldShowSauces = useMemo(() => {
+    if (!item?.category) return false;
+    return SAUCE_CATEGORIES.includes(item.category);
+  }, [item?.category]);
 
   // Fetch add-ons for this menu item
   const { data: addonsData, isLoading: addonsLoading } = useQuery({
@@ -97,18 +117,37 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
     enabled: !!item?.id && isOpen,
   });
 
-  // Group addons by category
+  // Group addons by category and filter based on item category
   const addonsByCategory = useMemo(() => {
     if (!addonsData?.addons || !addonsData?.categories) return {};
     
     const grouped: Record<string, any[]> = {};
     addonsData.categories.forEach(cat => {
-      grouped[cat.name] = addonsData.addons.filter(
+      // Check if this category should be shown for this item
+      const config = ADDON_TAB_CONFIG[cat.name as keyof typeof ADDON_TAB_CONFIG];
+      if (config) {
+        // If it's Sauces, only show for Doner items
+        if (cat.name === 'Sauces' && !shouldShowSauces) {
+          return;
+        }
+      }
+      
+      const categoryAddons = addonsData.addons.filter(
         addon => addon.addon_category_id === cat.id
       );
+      
+      if (categoryAddons.length > 0) {
+        grouped[cat.name] = categoryAddons;
+      }
     });
     return grouped;
-  }, [addonsData]);
+  }, [addonsData, shouldShowSauces]);
+
+  // Get available tabs
+  const availableTabs = useMemo(() => {
+    const tabs = Object.keys(addonsByCategory);
+    return tabs;
+  }, [addonsByCategory]);
 
   // Calculate totals
   const addonsTotal = useMemo(() => {
@@ -154,12 +193,28 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
     // Reset state
     setQuantity(1);
     setSelectedAddons({});
+    setActiveTab('info');
     onClose();
   };
 
   const handleClose = () => {
     setQuantity(1);
     setSelectedAddons({});
+    setActiveTab('info');
+    onClose();
+  };
+
+  const handleSkipAddons = () => {
+    // Skip directly to add to cart with no addons
+    onAddToCart(
+      { ...item, quantity },
+      [],
+      Number(item?.price) * quantity
+    );
+    
+    setQuantity(1);
+    setSelectedAddons({});
+    setActiveTab('info');
     onClose();
   };
 
@@ -170,6 +225,8 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
   const ingredients = item.ingredients || [];
   const allergens = item.allergens || [];
 
+  const hasAddons = availableTabs.length > 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col bg-card">
@@ -178,7 +235,7 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
             <div className="flex-1">
               <DialogTitle className="text-xl font-heading">{item.title}</DialogTitle>
               <p className="text-secondary font-bold text-lg mt-1">
-                ${Number(item.price).toFixed(2)}
+                £{Number(item.price).toFixed(2)}
               </p>
             </div>
           </div>
@@ -269,89 +326,122 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
             </AccordionItem>
           </Accordion>
 
-          {/* Add-ons Section */}
+          {/* Add-ons Section - Tabbed */}
           {addonsLoading ? (
             <div className="space-y-4 py-4">
-              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-10 w-full" />
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-14 w-full rounded-xl" />
                 ))}
               </div>
             </div>
-          ) : Object.keys(addonsByCategory).length > 0 ? (
-            <div className="py-4 space-y-6">
-              {Object.entries(addonsByCategory).map(([categoryName, addons]) => (
-                <div key={categoryName}>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Plus className="h-4 w-4 text-primary" />
-                    {categoryName}
-                  </h4>
-                  <div className="space-y-2">
-                    {addons.map((addon: any) => {
-                      const currentQty = selectedAddons[addon.id] || 0;
-                      
-                      return (
-                        <div
-                          key={addon.id}
-                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                            currentQty > 0 
-                              ? 'border-primary bg-primary/5' 
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{addon.name}</p>
-                            {addon.description && (
-                              <p className="text-xs text-muted-foreground">{addon.description}</p>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium text-secondary">
-                              +${Number(addon.price).toFixed(2)}
-                            </span>
+          ) : hasAddons ? (
+            <div className="py-4">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+                  {availableTabs.map((tabName) => {
+                    const config = ADDON_TAB_CONFIG[tabName as keyof typeof ADDON_TAB_CONFIG];
+                    const emoji = config?.emoji || '➕';
+                    const count = Object.entries(selectedAddons).filter(([id, qty]) => 
+                      addonsByCategory[tabName]?.some(a => a.id === id && qty > 0)
+                    ).length;
+                    
+                    return (
+                      <TabsTrigger 
+                        key={tabName} 
+                        value={tabName}
+                        className="flex-1 min-w-fit text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      >
+                        {emoji} {tabName.replace(' Add-ons', '').replace(' Options', '')}
+                        {count > 0 && (
+                          <span className="ml-1 bg-secondary text-secondary-foreground rounded-full px-1.5 text-[10px]">
+                            {count}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+                
+                {availableTabs.map((tabName) => (
+                  <TabsContent key={tabName} value={tabName} className="mt-3">
+                    <div className="space-y-2">
+                      {addonsByCategory[tabName]?.map((addon: any) => {
+                        const currentQty = selectedAddons[addon.id] || 0;
+                        
+                        return (
+                          <div
+                            key={addon.id}
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                              currentQty > 0 
+                                ? 'border-primary bg-primary/5' 
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{addon.name}</p>
+                              {addon.description && (
+                                <p className="text-xs text-muted-foreground">{addon.description}</p>
+                              )}
+                            </div>
                             
-                            {currentQty === 0 ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-3"
-                                onClick={() => handleAddonQuantity(addon.id, 1, addon.max_quantity)}
-                              >
-                                Add
-                              </Button>
-                            ) : (
-                              <div className="flex items-center gap-1 bg-muted rounded-full p-1">
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-secondary">
+                                +£{Number(addon.price).toFixed(2)}
+                              </span>
+                              
+                              {currentQty === 0 ? (
                                 <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 rounded-full"
-                                  onClick={() => handleAddonQuantity(addon.id, -1, addon.max_quantity)}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className="w-5 text-center text-sm font-semibold">
-                                  {currentQty}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 rounded-full"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 px-3"
                                   onClick={() => handleAddonQuantity(addon.id, 1, addon.max_quantity)}
-                                  disabled={currentQty >= addon.max_quantity}
                                 >
-                                  <Plus className="h-3 w-3" />
+                                  Add
                                 </Button>
-                              </div>
-                            )}
+                              ) : (
+                                <div className="flex items-center gap-1 bg-muted rounded-full p-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 rounded-full"
+                                    onClick={() => handleAddonQuantity(addon.id, -1, addon.max_quantity)}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-5 text-center text-sm font-semibold">
+                                    {currentQty}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 rounded-full"
+                                    onClick={() => handleAddonQuantity(addon.id, 1, addon.max_quantity)}
+                                    disabled={currentQty >= addon.max_quantity}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+                        );
+                      })}
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+              
+              {/* Skip button */}
+              <Button
+                variant="ghost"
+                className="w-full mt-3 text-muted-foreground"
+                onClick={handleSkipAddons}
+              >
+                <SkipForward className="h-4 w-4 mr-2" />
+                Skip extras & add to cart
+              </Button>
             </div>
           ) : null}
         </div>
@@ -386,7 +476,7 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
           {addonsTotal > 0 && (
             <div className="flex justify-between text-sm mb-3">
               <span className="text-muted-foreground">Add-ons</span>
-              <span>+${(addonsTotal * quantity).toFixed(2)}</span>
+              <span>+£{(addonsTotal * quantity).toFixed(2)}</span>
             </div>
           )}
 
@@ -395,7 +485,7 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
             onClick={handleAddToCart} 
             className="w-full btn-primary py-6 text-lg"
           >
-            Add to Cart • ${itemTotal.toFixed(2)}
+            Add to Cart • £{itemTotal.toFixed(2)}
           </Button>
         </div>
       </DialogContent>
