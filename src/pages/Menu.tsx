@@ -126,11 +126,13 @@ const Menu = () => {
   };
 
   const handleMealAddToCart = (meal: any, selections: MealSelection, totalPrice: number) => {
-    // Build description from selections
+    // Build description from all selections
     const parts: string[] = [];
-    if (selections.burger) parts.push(selections.burger.title);
-    if (selections.side) parts.push(selections.side.title);
-    if (selections.drink) parts.push(selections.drink.title);
+    Object.values(selections.selections).forEach((items: any[]) => {
+      items.forEach((item: any) => {
+        if (item?.title) parts.push(item.title);
+      });
+    });
     
     const upgradeCost = selections.upgrades.reduce((sum, u) => sum + u.priceDiff, 0);
     

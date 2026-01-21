@@ -34,6 +34,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import MealConfigEditor, { MealConfig } from './MealConfigEditor';
 
 const InventoryManagement = () => {
   const queryClient = useQueryClient();
@@ -59,7 +61,20 @@ const InventoryManagement = () => {
     is_featured: false,
     preparation_time: '15',
     allergens: [] as string[],
+    meal_config: null as MealConfig | null,
   });
+
+  // Default meal config for new meals
+  const defaultMealConfig: MealConfig = {
+    components: [
+      { category: 'Chicken Burgers', quantity: 1, required: true, label: 'Burger' },
+      { category: 'Fries', quantity: 1, required: true, label: 'Side', upgradeable: true },
+      { category: 'Drinks', quantity: 1, required: true, label: 'Drink' },
+    ],
+    upgrades: [
+      { from_category: 'Fries', to_categories: ['Tenders & Wings'], price_diff: 2, label: 'Upgrade to Wings/Tenders' }
+    ]
+  };
 
   const [stockAdjustment, setStockAdjustment] = useState({
     type: 'purchase',
@@ -120,6 +135,7 @@ const InventoryManagement = () => {
         is_featured: data.is_featured,
         preparation_time: parseInt(data.preparation_time) || 15,
         allergens: data.allergens,
+        meal_config: data.category === 'Meals' ? (data.meal_config || defaultMealConfig) : null,
       });
       if (error) throw error;
     },
@@ -150,6 +166,7 @@ const InventoryManagement = () => {
           is_featured: data.is_featured,
           preparation_time: parseInt(data.preparation_time) || 15,
           allergens: data.allergens,
+          meal_config: data.category === 'Meals' ? data.meal_config : null,
         })
         .eq('id', selectedItem.id);
       if (error) throw error;
@@ -256,6 +273,7 @@ const InventoryManagement = () => {
       is_featured: false,
       preparation_time: '15',
       allergens: [],
+      meal_config: null,
     });
   };
 
@@ -273,6 +291,7 @@ const InventoryManagement = () => {
       is_featured: item.is_featured ?? false,
       preparation_time: item.preparation_time?.toString() || '15',
       allergens: item.allergens || [],
+      meal_config: item.meal_config || null,
     });
     setIsAddModalOpen(true);
   };
@@ -631,6 +650,24 @@ const InventoryManagement = () => {
                 <Label>Featured item</Label>
               </div>
             </div>
+
+            {/* Meal Configuration - only show for Meals category */}
+            {formData.category === 'Meals' && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Meal Deal Configuration</Label>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Configure what items are included in this meal deal and any upgrade options.
+                  </p>
+                  <MealConfigEditor
+                    config={formData.meal_config || defaultMealConfig}
+                    onChange={(config) => setFormData({ ...formData, meal_config: config })}
+                    categories={categories || []}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="flex gap-4 pt-4">
               <Button variant="outline" onClick={() => setIsAddModalOpen(false)} className="flex-1">

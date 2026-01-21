@@ -162,6 +162,7 @@ export type Database = {
           is_available: boolean | null
           is_featured: boolean | null
           low_stock_threshold: number | null
+          meal_config: Json | null
           nutritional_info: Json | null
           preparation_time: number | null
           price: number
@@ -183,6 +184,7 @@ export type Database = {
           is_available?: boolean | null
           is_featured?: boolean | null
           low_stock_threshold?: number | null
+          meal_config?: Json | null
           nutritional_info?: Json | null
           preparation_time?: number | null
           price: number
@@ -204,6 +206,7 @@ export type Database = {
           is_available?: boolean | null
           is_featured?: boolean | null
           low_stock_threshold?: number | null
+          meal_config?: Json | null
           nutritional_info?: Json | null
           preparation_time?: number | null
           price?: number
