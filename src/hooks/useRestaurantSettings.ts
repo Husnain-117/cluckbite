@@ -199,34 +199,42 @@ export const useUpdateRestaurantSetting = () => {
   });
 };
 
-// Generate daily order number (resets each day)
+// Generate daily order number (resets each day) - race-condition safe
 export const generateDailyOrderNumber = async (prefix: string = 'ORD'): Promise<string> => {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = new Date();
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
   
-  // Get current counter
-  const { data } = await supabase
-    .from('restaurant_settings')
-    .select('setting_value')
-    .eq('setting_key', 'daily_order_counter')
-    .single();
+  // Query the highest order number for today with this prefix directly from orders table
+  // This avoids race conditions by always checking actual orders
+  const { data: orders } = await supabase
+    .from('orders')
+    .select('order_number')
+    .gte('created_at', startOfDay)
+    .lt('created_at', endOfDay)
+    .like('order_number', `${prefix}-%`)
+    .order('created_at', { ascending: false })
+    .limit(50);
   
-  let counter = 1;
-  const currentData = data?.setting_value as unknown as DailyOrderCounter | null;
+  let maxNumber = 0;
   
-  if (currentData && currentData.date === today) {
-    counter = (currentData.counter || 0) + 1;
+  if (orders && orders.length > 0) {
+    // Parse all order numbers and find the maximum
+    for (const order of orders) {
+      const match = order.order_number.match(new RegExp(`^${prefix}-(\\d+)$`));
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    }
   }
   
-  // Update counter
-  await supabase
-    .from('restaurant_settings')
-    .update({ 
-      setting_value: { date: today, counter } 
-    })
-    .eq('setting_key', 'daily_order_counter');
+  const nextNumber = maxNumber + 1;
   
   // Format: ORD-001, ORD-002, etc.
-  return `${prefix}-${counter.toString().padStart(3, '0')}`;
+  return `${prefix}-${nextNumber.toString().padStart(3, '0')}`;
 };
 
 export const isRestaurantOpen = (operatingHours: OperatingHours, emergencyClosure: EmergencyClosure): { isOpen: boolean; message: string } => {
