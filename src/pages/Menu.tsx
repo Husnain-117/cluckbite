@@ -18,7 +18,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -127,15 +126,13 @@ const Menu = () => {
   };
 
   const handleMealAddToCart = (meal: any, selections: MealSelection, totalPrice: number) => {
-    // Build description from all selections
+    // Build description from selections
     const parts: string[] = [];
-    Object.values(selections.selections).forEach((items: any[]) => {
-      items.forEach((item: any) => {
-        if (item?.title) parts.push(item.title);
-      });
-    });
+    selections.burgers.forEach((s) => parts.push(`${s.quantity}x ${s.item.title}`));
+    selections.sides.forEach((s) => parts.push(`${s.quantity}x ${s.item.title}`));
+    selections.drinks.forEach((s) => parts.push(`${s.quantity}x ${s.item.title}`));
     
-    const upgradeCost = selections.upgrades.reduce((sum, u) => sum + u.priceDiff, 0);
+    const upgradeCost = selections.upgrades.reduce((sum, u) => sum + u.priceDiff * u.quantity, 0);
     
     addItemWithAddons({
       id: meal.id,
@@ -202,9 +199,6 @@ const Menu = () => {
             <SheetContent className="w-full sm:max-w-md">
               <SheetHeader>
                 <SheetTitle className="font-heading">Your Cart</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Review your cart items and proceed to checkout
-                </SheetDescription>
               </SheetHeader>
               <div className="mt-6 flex flex-col h-[calc(100vh-180px)]">
                 {items.length === 0 ? (

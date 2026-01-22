@@ -223,7 +223,6 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
 
   // Parse nutritional info
   const nutritionalInfo = item.nutritional_info || {};
-  const ingredients = item.ingredients || [];
   const allergens = item.allergens || [];
 
   const hasAddons = availableTabs.length > 0;
@@ -266,32 +265,13 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
                       <AlertTriangle className="h-4 w-4 text-destructive" />
                       <span className="font-medium text-sm">Allergens</span>
                     </div>
-                    {allergens.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {allergens.map((allergen: string, i: number) => (
-                          <span
-                            key={i}
-                            className="px-2 py-1 bg-destructive/10 text-destructive text-xs rounded-full"
-                          >
-                            {allergen}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">Ask a staff member</p>
-                    )}
+                    <p className="text-sm text-muted-foreground italic">Ask a staff member</p>
                   </div>
 
                   {/* Ingredients */}
                   <div>
                     <p className="font-medium text-sm mb-2">Ingredients</p>
-                    {ingredients.length > 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        {ingredients.join(', ')}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">Ask a staff member</p>
-                    )}
+                    <p className="text-sm text-muted-foreground italic">Ask a staff member</p>
                   </div>
 
                   {/* Calories / Nutritional Info */}
