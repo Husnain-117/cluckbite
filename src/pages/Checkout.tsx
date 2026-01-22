@@ -93,35 +93,56 @@ const Checkout = () => {
     setIsSubmitting(true);
 
     try {
-      const orderNumber = await generateDailyOrderNumber('ORD');
       const { amountPaidOnline, amountDueCod } = calculatePaymentAmounts();
-
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
-          user_id: user?.id || null,
-          customer_email: customerEmail,
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          delivery_address: deliveryInfo?.type === 'delivery' ? deliveryInfo.address : null,
-          pin_location: deliveryInfo?.pinLocation || null,
-          order_type: deliveryInfo?.type || 'collection',
-          delivery_charges: deliveryCharges,
-          distance_km: deliveryInfo?.distance || null,
-          subtotal,
-          total_amount: total,
-          payment_method: paymentMethod,
-          payment_status: paymentMethod === 'card' ? 'completed' : paymentMethod === 'cod' ? 'pending' : 'partial',
-          amount_paid_online: amountPaidOnline,
-          amount_due_cod: amountDueCod,
-          special_instructions: specialInstructions || null,
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
+      
+      // Retry mechanism for order number collision
+      let order = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!order && attempts < maxAttempts) {
+        attempts++;
+        const orderNumber = await generateDailyOrderNumber('ORD');
+        
+        const { data, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            order_number: orderNumber,
+            user_id: user?.id || null,
+            customer_email: customerEmail,
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            delivery_address: deliveryInfo?.type === 'delivery' ? deliveryInfo.address : null,
+            pin_location: deliveryInfo?.pinLocation || null,
+            order_type: deliveryInfo?.type || 'collection',
+            delivery_charges: deliveryCharges,
+            distance_km: deliveryInfo?.distance || null,
+            subtotal,
+            total_amount: total,
+            payment_method: paymentMethod,
+            payment_status: paymentMethod === 'card' ? 'completed' : paymentMethod === 'cod' ? 'pending' : 'partial',
+            amount_paid_online: amountPaidOnline,
+            amount_due_cod: amountDueCod,
+            special_instructions: specialInstructions || null,
+          })
+          .select()
+          .single();
+        
+        if (orderError) {
+          // If it's a duplicate key error, retry with new number
+          if (orderError.code === '23505' && attempts < maxAttempts) {
+            console.log(`Order number collision, retrying... (attempt ${attempts})`);
+            continue;
+          }
+          throw orderError;
+        }
+        
+        order = data;
+      }
+      
+      if (!order) {
+        throw new Error('Failed to create order after multiple attempts');
+      }
 
       // Create order items
       const orderItems = items.map((item) => ({
@@ -144,18 +165,18 @@ const Checkout = () => {
         {
           recipient_role: 'manager',
           order_id: order.id,
-          message: `New order #${orderNumber} received from ${customerName}`,
+          message: `New order #${order.order_number} received from ${customerName}`,
         },
         {
           recipient_role: 'admin',
           order_id: order.id,
-          message: `New order #${orderNumber} - Total: £${total.toFixed(2)}`,
+          message: `New order #${order.order_number} - Total: £${total.toFixed(2)}`,
         },
       ]);
 
       // Clear cart and navigate to success
       clearCart();
-      navigate(`/order-success?order=${orderNumber}`);
+      navigate(`/order-success?order=${order.order_number}`);
     } catch (error: any) {
       console.error('Order submission error:', error);
       toast.error('Failed to place order. Please try again.');

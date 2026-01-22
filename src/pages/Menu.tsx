@@ -18,6 +18,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -201,6 +202,9 @@ const Menu = () => {
             <SheetContent className="w-full sm:max-w-md">
               <SheetHeader>
                 <SheetTitle className="font-heading">Your Cart</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Review your cart items and proceed to checkout
+                </SheetDescription>
               </SheetHeader>
               <div className="mt-6 flex flex-col h-[calc(100vh-180px)]">
                 {items.length === 0 ? (
