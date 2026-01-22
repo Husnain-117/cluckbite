@@ -202,17 +202,15 @@ export const useUpdateRestaurantSetting = () => {
 // Generate daily order number (resets each day) - race-condition safe
 export const generateDailyOrderNumber = async (prefix: string = 'ORD'): Promise<string> => {
   const today = new Date();
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD format
+  const orderPrefix = `${prefix}-${dateStr}`;
   
   // Query the highest order number for today with this prefix directly from orders table
-  // This avoids race conditions by always checking actual orders
+  // This includes the date in the order number to avoid collisions across days
   const { data: orders } = await supabase
     .from('orders')
     .select('order_number')
-    .gte('created_at', startOfDay)
-    .lt('created_at', endOfDay)
-    .like('order_number', `${prefix}-%`)
+    .like('order_number', `${orderPrefix}-%`)
     .order('created_at', { ascending: false })
     .limit(50);
   
@@ -221,7 +219,7 @@ export const generateDailyOrderNumber = async (prefix: string = 'ORD'): Promise<
   if (orders && orders.length > 0) {
     // Parse all order numbers and find the maximum
     for (const order of orders) {
-      const match = order.order_number.match(new RegExp(`^${prefix}-(\\d+)$`));
+      const match = order.order_number.match(new RegExp(`^${orderPrefix}-(\\d+)$`));
       if (match) {
         const num = parseInt(match[1], 10);
         if (num > maxNumber) {
@@ -233,8 +231,8 @@ export const generateDailyOrderNumber = async (prefix: string = 'ORD'): Promise<
   
   const nextNumber = maxNumber + 1;
   
-  // Format: ORD-001, ORD-002, etc.
-  return `${prefix}-${nextNumber.toString().padStart(3, '0')}`;
+  // Format: ORD-20260122-001, ORD-20260122-002, etc.
+  return `${orderPrefix}-${nextNumber.toString().padStart(3, '0')}`;
 };
 
 export const isRestaurantOpen = (operatingHours: OperatingHours, emergencyClosure: EmergencyClosure): { isOpen: boolean; message: string } => {

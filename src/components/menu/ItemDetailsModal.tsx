@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -234,6 +235,9 @@ const ItemDetailsModal = ({ item, isOpen, onClose, onAddToCart }: ItemDetailsMod
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <DialogTitle className="text-xl font-heading">{item.title}</DialogTitle>
+              <DialogDescription className="sr-only">
+                Customize your {item.title} with add-ons and extras
+              </DialogDescription>
               <p className="text-secondary font-bold text-lg mt-1">
                 £{Number(item.price).toFixed(2)}
               </p>
