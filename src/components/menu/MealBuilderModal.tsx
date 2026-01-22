@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -265,6 +266,9 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                 <Sparkles className="h-5 w-5 text-primary" />
                 {meal.title}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Build your {meal.title} meal by selecting items from each category
+              </DialogDescription>
               <p className="text-sm text-muted-foreground mt-1">{meal.description}</p>
             </div>
             <Badge variant="secondary" className="text-lg font-bold">
