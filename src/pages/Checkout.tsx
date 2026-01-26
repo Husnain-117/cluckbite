@@ -120,9 +120,9 @@ const Checkout = () => {
             subtotal,
             total_amount: total,
             payment_method: paymentMethod,
-            payment_status: paymentMethod === 'card' ? 'completed' : paymentMethod === 'cod' ? 'pending' : 'partial',
-            amount_paid_online: amountPaidOnline,
-            amount_due_cod: amountDueCod,
+            payment_status: paymentMethod === 'cod' ? 'pending' : 'pending', // Set to pending until Stripe confirms
+            amount_paid_online: 0, // Will be updated after payment
+            amount_due_cod: paymentMethod === 'cod' ? total : amountDueCod,
             special_instructions: specialInstructions || null,
           })
           .select()
@@ -174,7 +174,30 @@ const Checkout = () => {
         },
       ]);
 
-      // Clear cart and navigate to success
+      // If payment method is card or split with card portion, redirect to Stripe
+      if (paymentMethod === 'card' || (paymentMethod === 'split' && amountPaidOnline > 0)) {
+        const paymentAmount = paymentMethod === 'card' ? total : amountPaidOnline;
+        
+        const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
+          body: {
+            amount: Math.round(paymentAmount * 100), // Convert to pennies
+            orderId: order.id,
+            customerEmail,
+            customerName,
+            orderNumber: order.order_number,
+          },
+        });
+
+        if (checkoutError || !checkoutData?.url) {
+          throw new Error(checkoutError?.message || 'Failed to create payment session');
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = checkoutData.url;
+        return;
+      }
+
+      // For cash on delivery, go directly to success page
       clearCart();
       navigate(`/order-success?order=${order.order_number}`);
     } catch (error: any) {

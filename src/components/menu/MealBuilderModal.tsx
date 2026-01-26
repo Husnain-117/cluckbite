@@ -59,10 +59,49 @@ const parseMealCountsFromText = (text: string) => {
   return result;
 };
 
-// Define what categories are available for selection based on meal type
-const getMealConfig = (mealTitle: string, mealDescription?: string): MealConfig => {
-  const title = (mealTitle || '').toLowerCase();
-  const countsFromDesc = parseMealCountsFromText(mealDescription || '');
+// Parse meal config from database or use smart defaults
+const getMealConfig = (meal: any): MealConfig => {
+  // If meal has a database config, use it to build the steps
+  if (meal?.meal_config?.components && meal.meal_config.components.length > 0) {
+    const components = meal.meal_config.components;
+    const steps: MealStep[] = [];
+    const counts: Record<MealStep, number> = { burger: 0, side: 0, drink: 0 };
+    const burgerCategories: string[] = [];
+
+    components.forEach((comp: any) => {
+      const categories = (comp.category || '').split(',').map((c: string) => c.trim()).filter(Boolean);
+      
+      // Determine which step this component maps to
+      const lowerCategories = categories.map((c: string) => c.toLowerCase());
+      const label = (comp.label || '').toLowerCase();
+      
+      if (lowerCategories.some((c: string) => c.includes('burger') || c.includes('wrap')) || label.includes('burger') || label.includes('main')) {
+        if (!steps.includes('burger')) steps.push('burger');
+        counts.burger = comp.quantity || 1;
+        burgerCategories.push(...categories);
+      } else if (lowerCategories.some((c: string) => c.includes('drink')) || label.includes('drink')) {
+        if (!steps.includes('drink')) steps.push('drink');
+        counts.drink = comp.quantity || 1;
+      } else if (lowerCategories.some((c: string) => c.includes('fries') || c.includes('side') || c.includes('sauce')) || label.includes('side') || label.includes('sauce')) {
+        if (!steps.includes('side')) steps.push('side');
+        counts.side += comp.quantity || 1;
+      }
+    });
+
+    // Ensure we have at least some steps
+    if (steps.length === 0) {
+      steps.push('burger', 'side', 'drink');
+      counts.burger = 1;
+      counts.side = 1;
+      counts.drink = 1;
+    }
+
+    return { steps, burgerCategories, counts };
+  }
+
+  // Fallback to title-based logic
+  const title = (meal?.title || '').toLowerCase();
+  const countsFromDesc = parseMealCountsFromText(meal?.description || '');
 
   const defaultCounts: Record<MealStep, number> = {
     burger: 1,
@@ -153,7 +192,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
   });
   const [showUpgradeOptions, setShowUpgradeOptions] = useState(false);
 
-  const config = useMemo(() => (meal ? getMealConfig(meal.title, meal.description) : null), [meal?.title, meal?.description]);
+  const config = useMemo(() => (meal ? getMealConfig(meal) : null), [meal]);
 
   // Fetch menu items for building meals
   const { data: menuItems = [], isLoading } = useQuery({

@@ -58,8 +58,16 @@ const AdminSettings = () => {
       if (settings.socialLinks) {
         setSocialLinks(settings.socialLinks);
       }
+      // Load restaurant info from settings if available
+      if (settings.restaurantInfo) {
+        setRestaurantSettings(settings.restaurantInfo);
+      }
     }
   }, [settings]);
+
+  const handleSaveRestaurantInfo = () => {
+    updateSetting.mutate({ key: 'restaurant_info', value: restaurantSettings });
+  };
 
   const handleSaveOperatingHours = () => {
     if (operatingHours) {
@@ -185,8 +193,9 @@ const AdminSettings = () => {
                   />
                 </div>
               </div>
-              <Button onClick={() => toast.success('Restaurant info saved!')} className="btn-primary">
-                <Save className="h-4 w-4 mr-2" />Save Changes
+              <Button onClick={handleSaveRestaurantInfo} className="btn-primary" disabled={updateSetting.isPending}>
+                <Save className="h-4 w-4 mr-2" />
+                {updateSetting.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           )}
