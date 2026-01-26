@@ -82,11 +82,15 @@ const MenuPreviewSection = () => {
               <div key={item.id} className="card-menu group">
                 {/* Image */}
                 <div className="relative h-48 bg-gradient-to-br from-muted to-background overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-6xl">
-                      {categoryEmojis[item.category] || '🍽️'}
-                    </span>
-                  </div>
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-6xl">
+                        {categoryEmojis[item.category] || '🍽️'}
+                      </span>
+                    </div>
+                  )}
                   {/* Category badge */}
                   <div className="absolute top-3 left-3">
                     <span className="badge-featured">{item.category}</span>

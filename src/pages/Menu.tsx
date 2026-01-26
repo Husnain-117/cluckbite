@@ -372,11 +372,19 @@ const Menu = () => {
                 >
                   {/* Image */}
                   <div className="relative h-40 bg-gradient-to-br from-muted to-background overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-5xl group-hover:scale-110 transition-transform duration-300">
-                        {categoryEmojis[item.category] || '🍽️'}
-                      </span>
-                    </div>
+                    {item.image_url ? (
+                      <img 
+                        src={item.image_url} 
+                        alt={item.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-5xl group-hover:scale-110 transition-transform duration-300">
+                          {categoryEmojis[item.category] || '🍽️'}
+                        </span>
+                      </div>
+                    )}
                     
                     {/* Badges */}
                     <div className="absolute top-3 left-3 flex gap-2">

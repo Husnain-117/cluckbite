@@ -1,14 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Clock, MapPin, ArrowRight } from 'lucide-react';
+import { CheckCircle, Clock, MapPin, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useCart } from '@/contexts/CartContext';
 import confetti from 'canvas-confetti';
 
 const OrderSuccess = () => {
   const [searchParams] = useSearchParams();
   const orderNumber = searchParams.get('order');
+  const orderId = searchParams.get('order_id');
+  const sessionId = searchParams.get('session_id');
+  const { clearCart } = useCart();
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Trigger confetti animation
     confetti({
       particleCount: 100,
@@ -16,7 +22,36 @@ const OrderSuccess = () => {
       origin: { y: 0.6 },
       colors: ['#F2994A', '#F2C94C', '#EB5757'],
     });
-  }, []);
+
+    // If we have an order_id and session_id from Stripe, update the payment status
+    const updatePaymentStatus = async () => {
+      if (orderId && sessionId) {
+        setIsUpdatingPayment(true);
+        try {
+          // Update the order payment status to completed
+          const { error } = await supabase
+            .from('orders')
+            .update({
+              payment_status: 'completed',
+            })
+            .eq('id', orderId);
+
+          if (error) {
+            console.error('Failed to update payment status:', error);
+          }
+          
+          // Clear the cart after successful payment
+          clearCart();
+        } catch (error) {
+          console.error('Error updating payment status:', error);
+        } finally {
+          setIsUpdatingPayment(false);
+        }
+      }
+    };
+
+    updatePaymentStatus();
+  }, [orderId, sessionId, clearCart]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">

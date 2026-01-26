@@ -171,6 +171,7 @@ export const useRestaurantSettings = () => {
         deliverySettings,
         socialLinks: settings['social_links'] as SocialLinks,
         dailyOrderCounter: settings['daily_order_counter'] as DailyOrderCounter,
+        restaurantInfo: settings['restaurant_info'] as { name: string; email: string; phone: string; address: string } | undefined,
       };
     },
     staleTime: 1000 * 60 * 5,
@@ -182,10 +183,13 @@ export const useUpdateRestaurantSetting = () => {
   
   return useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
+      // Use upsert to handle both new and existing settings
       const { error } = await supabase
         .from('restaurant_settings')
-        .update({ setting_value: value })
-        .eq('setting_key', key);
+        .upsert(
+          { setting_key: key, setting_value: value },
+          { onConflict: 'setting_key' }
+        );
       
       if (error) throw error;
     },
