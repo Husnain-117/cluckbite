@@ -4,10 +4,10 @@ import {
   Search,
   Edit,
   Trash2,
-  DollarSign,
   Tag,
   FolderPlus,
   Link2,
+  PoundSterling,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import ImageUpload from './ImageUpload';
 
 const AddonsManagement = () => {
   const queryClient = useQueryClient();
@@ -54,6 +55,7 @@ const AddonsManagement = () => {
     addon_category_id: '',
     max_quantity: '5',
     is_available: true,
+    image_url: null as string | null,
   });
 
   const [categoryForm, setCategoryForm] = useState({
@@ -270,6 +272,7 @@ const AddonsManagement = () => {
       addon_category_id: '',
       max_quantity: '5',
       is_available: true,
+      image_url: null,
     });
   };
 
@@ -291,6 +294,7 @@ const AddonsManagement = () => {
       addon_category_id: addon.addon_category_id || '',
       max_quantity: addon.max_quantity?.toString() || '5',
       is_available: addon.is_available ?? true,
+      image_url: addon.image_url || null,
     });
     setIsAddonModalOpen(true);
   };
@@ -439,7 +443,7 @@ const AddonsManagement = () => {
                   
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-bold text-secondary">
-                      +${Number(addon.price).toFixed(2)}
+                      +£{Number(addon.price).toFixed(2)}
                     </span>
                     <div className="flex gap-2">
                       <Button
@@ -560,6 +564,14 @@ const AddonsManagement = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label>Image</Label>
+              <ImageUpload
+                value={addonForm.image_url}
+                onChange={(url) => setAddonForm({ ...addonForm, image_url: url })}
+                folder="addons"
+              />
+            </div>
+            <div>
               <Label>Name *</Label>
               <Input
                 value={addonForm.name}
@@ -581,7 +593,7 @@ const AddonsManagement = () => {
               <div>
                 <Label>Price *</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="number"
                     step="0.01"

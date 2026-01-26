@@ -276,7 +276,7 @@ const UserManagement = () => {
                       </td>
                       <td className="py-4 px-4">{userStats.orders}</td>
                       <td className="py-4 px-4 font-semibold text-secondary">
-                        ${userStats.total.toFixed(2)}
+                        £{userStats.total.toFixed(2)}
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
                         {new Date(profile.created_at).toLocaleDateString()}

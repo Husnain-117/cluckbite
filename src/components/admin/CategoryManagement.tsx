@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import ImageUpload from './ImageUpload';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ interface Category {
   description: string | null;
   is_active: boolean;
   display_order: number;
+  image_url?: string | null;
 }
 
 const CategoryManagement = () => {
@@ -45,6 +47,7 @@ const CategoryManagement = () => {
     description: '',
     is_active: true,
     display_order: 0,
+    image_url: null as string | null,
   });
 
   const { data: categories, isLoading } = useQuery({
@@ -135,7 +138,7 @@ const CategoryManagement = () => {
   });
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', is_active: true, display_order: 0 });
+    setFormData({ name: '', description: '', is_active: true, display_order: 0, image_url: null });
     setEditingCategory(null);
   };
 
@@ -146,6 +149,7 @@ const CategoryManagement = () => {
       description: category.description || '',
       is_active: category.is_active,
       display_order: category.display_order,
+      image_url: category.image_url || null,
     });
     setIsDialogOpen(true);
   };
@@ -187,6 +191,14 @@ const CategoryManagement = () => {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Category Image</Label>
+                <ImageUpload
+                  value={formData.image_url}
+                  onChange={(url) => setFormData({ ...formData, image_url: url })}
+                  folder="categories"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Category Name *</Label>
                 <Input
