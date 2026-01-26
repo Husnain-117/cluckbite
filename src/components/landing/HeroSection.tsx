@@ -70,7 +70,7 @@ const HeroSection = () => {
             <div className="flex flex-wrap gap-6 justify-center lg:justify-start">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-5 w-5 text-primary" />
-                <span>£2 for 3 mile delivery</span>
+                <span>£2 for 3 mile delivery (+£0.50/mile)</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="h-5 w-5 text-primary" />

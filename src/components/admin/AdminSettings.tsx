@@ -375,9 +375,8 @@ const AdminSettings = () => {
                 <div className="p-4 bg-muted/50 rounded-xl">
                   <h4 className="font-medium mb-2">Delivery Charge Tiers (Miles)</h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Up to 3 miles: £1.50</li>
-                    <li>• 3-4 miles: £2.50</li>
-                    <li>• Above 4 miles: £2.50 + £1 per additional mile</li>
+                    <li>• Up to 3 miles: £2.00</li>
+                    <li>• Above 3 miles: £2.00 + £0.50 per additional mile</li>
                   </ul>
                 </div>
 

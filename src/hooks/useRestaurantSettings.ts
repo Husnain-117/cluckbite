@@ -106,9 +106,9 @@ export const cardiffPostcodeDistances: Record<string, number> = {
 };
 
 export const getDeliveryCharge = (miles: number): number => {
-  if (miles <= 3) return 1.50;
-  if (miles <= 4) return 2.50;
-  return 2.50 + Math.ceil(miles - 4);
+  // £2 for first 3 miles, then £0.50 per additional mile
+  if (miles <= 3) return 2.00;
+  return 2.00 + Math.ceil(miles - 3) * 0.50;
 };
 
 export const getDistanceFromPostcode = (postcode: string): { distance: number | null; outwardCode: string | null } => {
