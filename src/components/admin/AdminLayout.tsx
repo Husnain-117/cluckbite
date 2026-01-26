@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import AdminNotifications from './AdminNotifications';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -40,6 +41,7 @@ const sidebarItems = [
 
 const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutProps) => {
   const { user, signOut } = useAdminAuth();
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   const { data: unreadCount } = useQuery({
     queryKey: ['admin-unread-notifications'],
@@ -129,14 +131,24 @@ const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutProps) =>
 
           {/* Actions */}
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {unreadCount}
-                </span>
+            <div className="relative">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative"
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+              {isNotificationsOpen && (
+                <AdminNotifications onClose={() => setIsNotificationsOpen(false)} />
               )}
-            </Button>
+            </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-full">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-sm text-green-500 font-medium">System Online</span>

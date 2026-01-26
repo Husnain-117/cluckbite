@@ -366,11 +366,25 @@ const WalkInOrders = () => {
             <div className="grid grid-cols-2 gap-1.5">
               <div>
                 <Label className="text-[10px]">Name *</Label>
-                <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Name" className="input-styled h-7 text-xs" />
+                <Input 
+                  value={customerName} 
+                  onChange={(e) => setCustomerName(e.target.value)} 
+                  placeholder="Name" 
+                  className="input-styled h-7 text-xs"
+                  autoComplete="off"
+                  onFocus={(e) => e.target.select()}
+                />
               </div>
               <div>
                 <Label className="text-[10px]">Phone *</Label>
-                <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="07XXX" className="input-styled h-7 text-xs" />
+                <Input 
+                  value={customerPhone} 
+                  onChange={(e) => setCustomerPhone(e.target.value)} 
+                  placeholder="07XXX" 
+                  className="input-styled h-7 text-xs"
+                  autoComplete="off"
+                  onFocus={(e) => e.target.select()}
+                />
               </div>
             </div>
           </div>

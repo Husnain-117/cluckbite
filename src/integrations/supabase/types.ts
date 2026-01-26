@@ -47,6 +47,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           is_available: boolean | null
           max_quantity: number | null
           name: string
@@ -57,6 +58,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           is_available?: boolean | null
           max_quantity?: number | null
           name: string
@@ -67,6 +69,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           is_available?: boolean | null
           max_quantity?: number | null
           name?: string
@@ -88,6 +91,7 @@ export type Database = {
           description: string | null
           display_order: number | null
           id: string
+          image_url: string | null
           is_active: boolean | null
           name: string
         }
@@ -96,6 +100,7 @@ export type Database = {
           description?: string | null
           display_order?: number | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           name: string
         }
@@ -104,6 +109,7 @@ export type Database = {
           description?: string | null
           display_order?: number | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           name?: string
         }
