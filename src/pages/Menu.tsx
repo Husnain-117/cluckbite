@@ -224,7 +224,7 @@ const Menu = () => {
                               </p>
                             )}
                             <p className="text-secondary font-bold mt-1">
-                              ${((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}
+                              £{((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -252,17 +252,17 @@ const Menu = () => {
                     <div className="border-t border-border pt-4 mt-4 space-y-3">
                       <div className="flex justify-between text-muted-foreground">
                         <span>Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
+                        <span>£{subtotal.toFixed(2)}</span>
                       </div>
                       {deliveryCharges > 0 && (
                         <div className="flex justify-between text-muted-foreground">
                           <span>Delivery</span>
-                          <span>${deliveryCharges.toFixed(2)}</span>
+                          <span>£{deliveryCharges.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-heading font-bold">
                         <span>Total</span>
-                        <span className="text-secondary">${total.toFixed(2)}</span>
+                        <span className="text-secondary">£{total.toFixed(2)}</span>
                       </div>
                       <Link to="/checkout" className="block">
                         <Button className="w-full btn-primary">
@@ -412,7 +412,7 @@ const Menu = () => {
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-xl font-heading font-bold text-secondary">
-                        ${Number(item.price).toFixed(2)}
+                        £{Number(item.price).toFixed(2)}
                       </span>
 
                       <Button
@@ -441,7 +441,7 @@ const Menu = () => {
           <Link to="/checkout">
             <Button className="btn-primary shadow-glow px-8 py-6 text-lg">
               <ShoppingCart className="mr-2 h-5 w-5" />
-              View Cart ({itemCount}) • ${total.toFixed(2)}
+              View Cart ({itemCount}) • £{total.toFixed(2)}
             </Button>
           </Link>
         </div>

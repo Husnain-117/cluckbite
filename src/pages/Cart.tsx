@@ -79,7 +79,7 @@ const Cart = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold truncate">{item.title}</h3>
-                <p className="text-secondary font-bold">${item.price.toFixed(2)} each</p>
+                <p className="text-secondary font-bold">£{item.price.toFixed(2)} each</p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <button
@@ -107,7 +107,7 @@ const Cart = () => {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="font-bold">${(item.price * item.quantity).toFixed(2)}</p>
+                <p className="font-bold">£{(item.price * item.quantity).toFixed(2)}</p>
               </div>
             </div>
           ))}
@@ -128,17 +128,17 @@ const Cart = () => {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal ({itemCount} items)</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>£{subtotal.toFixed(2)}</span>
             </div>
             {deliveryCharges > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Delivery Charges</span>
-                <span>${deliveryCharges.toFixed(2)}</span>
+                <span>£{deliveryCharges.toFixed(2)}</span>
               </div>
             )}
             <div className="border-t border-border pt-3 flex justify-between">
               <span className="font-heading font-bold text-lg">Total</span>
-              <span className="font-heading font-bold text-lg text-secondary">${total.toFixed(2)}</span>
+              <span className="font-heading font-bold text-lg text-secondary">£{total.toFixed(2)}</span>
             </div>
           </div>
 
