@@ -56,10 +56,9 @@ const cardiffPostcodeDistances: Record<string, number> = {
 
 // Delivery charge tiers in miles (GBP)
 const getDeliveryCharge = (miles: number): number => {
-  if (miles <= 3) return 1.50;
-  if (miles <= 4) return 2.50;
-  // For distances above 4 miles, add £1 for each additional mile
-  return 2.50 + Math.ceil(miles - 4);
+  // £2 for first 3 miles, then £0.50 per additional mile
+  if (miles <= 3) return 2.00;
+  return 2.00 + Math.ceil(miles - 3) * 0.50;
 };
 
 interface OrderTypeModalProps {

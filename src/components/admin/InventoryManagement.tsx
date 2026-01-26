@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import MealConfigEditor, { MealConfig } from './MealConfigEditor';
+import ImageUpload from './ImageUpload';
 
 const InventoryManagement = () => {
   const queryClient = useQueryClient();
@@ -62,6 +63,7 @@ const InventoryManagement = () => {
     preparation_time: '15',
     allergens: [] as string[],
     meal_config: null as MealConfig | null,
+    image_url: null as string | null,
   });
 
   // Default meal config for new meals
@@ -136,6 +138,7 @@ const InventoryManagement = () => {
         preparation_time: parseInt(data.preparation_time) || 15,
         allergens: data.allergens,
         meal_config: data.category === 'Meals' ? (data.meal_config || defaultMealConfig) : null,
+        image_url: data.image_url,
       });
       if (error) throw error;
     },
@@ -167,6 +170,7 @@ const InventoryManagement = () => {
           preparation_time: parseInt(data.preparation_time) || 15,
           allergens: data.allergens,
           meal_config: data.category === 'Meals' ? data.meal_config : null,
+          image_url: data.image_url,
         })
         .eq('id', selectedItem.id);
       if (error) throw error;
@@ -274,6 +278,7 @@ const InventoryManagement = () => {
       preparation_time: '15',
       allergens: [],
       meal_config: null,
+      image_url: null,
     });
   };
 
@@ -292,6 +297,7 @@ const InventoryManagement = () => {
       preparation_time: item.preparation_time?.toString() || '15',
       allergens: item.allergens || [],
       meal_config: item.meal_config || null,
+      image_url: item.image_url || null,
     });
     setIsAddModalOpen(true);
   };
@@ -419,8 +425,12 @@ const InventoryManagement = () => {
             const stockStatus = getStockStatus(item);
             return (
               <div key={item.id} className="card-elevated overflow-hidden group">
-                <div className="relative h-32 bg-gradient-to-br from-muted to-background flex items-center justify-center">
-                  <span className="text-5xl">{categoryEmojis[item.category] || '🍽️'}</span>
+                <div className="relative h-32 bg-gradient-to-br from-muted to-background flex items-center justify-center overflow-hidden">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-5xl">{categoryEmojis[item.category] || '🍽️'}</span>
+                  )}
                   <div className="absolute top-3 right-3 flex gap-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${stockStatus.color}`}>
                       {stockStatus.label}
@@ -538,6 +548,16 @@ const InventoryManagement = () => {
             <DialogTitle>{selectedItem ? 'Edit Item' : 'Add New Item'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-4">
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <Label>Item Image</Label>
+              <ImageUpload
+                value={formData.image_url}
+                onChange={(url) => setFormData({ ...formData, image_url: url })}
+                folder="items"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Title *</Label>
