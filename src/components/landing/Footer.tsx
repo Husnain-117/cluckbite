@@ -118,20 +118,25 @@ const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                 <span className="text-muted-foreground">
-                  1 Cowbridge Road West<br />
-                  Ely, Cardiff CF5 5BS
+                  {settings?.restaurantInfo?.address || '1 Cowbridge Road West, Ely, Cardiff CF5 5BS'}
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-primary flex-shrink-0" />
-                <a href="tel:+442920000000" className="text-muted-foreground hover:text-primary transition-colors">
-                  +44 29 2000 0000
+                <a 
+                  href={`tel:${settings?.restaurantInfo?.phone?.replace(/\s/g, '') || '+442920000000'}`} 
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {settings?.restaurantInfo?.phone || '+44 29 2000 0000'}
                 </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-primary flex-shrink-0" />
-                <a href="mailto:hello@cluckbite.com" className="text-muted-foreground hover:text-primary transition-colors">
-                  hello@cluckbite.com
+                <a 
+                  href={`mailto:${settings?.restaurantInfo?.email || 'hello@cluckbite.com'}`} 
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {settings?.restaurantInfo?.email || 'hello@cluckbite.com'}
                 </a>
               </li>
             </ul>

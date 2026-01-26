@@ -107,7 +107,7 @@ const MenuPreviewSection = () => {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-heading font-bold text-secondary">
-                      ${Number(item.price).toFixed(2)}
+                      £{Number(item.price).toFixed(2)}
                     </span>
                     <Button
                       onClick={() => handleAddToCart(item)}

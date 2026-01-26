@@ -36,8 +36,15 @@ interface MealBuilderModalProps {
 
 type MealStep = 'burger' | 'side' | 'drink';
 
+interface StepConfig {
+  categories: string[];
+  count: number;
+  label: string;
+}
+
 type MealConfig = {
   steps: MealStep[];
+  stepConfigs: Record<MealStep, StepConfig>;
   burgerCategories: string[];
   counts: Record<MealStep, number>;
 };
@@ -61,11 +68,18 @@ const parseMealCountsFromText = (text: string) => {
 
 // Parse meal config from database or use smart defaults
 const getMealConfig = (meal: any): MealConfig => {
+  const defaultStepConfigs: Record<MealStep, StepConfig> = {
+    burger: { categories: ['Chicken Burgers', 'Smash Burgers'], count: 1, label: 'Burger' },
+    side: { categories: ['Fries', 'Sides'], count: 1, label: 'Side' },
+    drink: { categories: ['Drinks'], count: 1, label: 'Drink' },
+  };
+
   // If meal has a database config, use it to build the steps
   if (meal?.meal_config?.components && meal.meal_config.components.length > 0) {
     const components = meal.meal_config.components;
     const steps: MealStep[] = [];
     const counts: Record<MealStep, number> = { burger: 0, side: 0, drink: 0 };
+    const stepConfigs: Record<MealStep, StepConfig> = { ...defaultStepConfigs };
     const burgerCategories: string[] = [];
 
     components.forEach((comp: any) => {
@@ -77,14 +91,33 @@ const getMealConfig = (meal: any): MealConfig => {
       
       if (lowerCategories.some((c: string) => c.includes('burger') || c.includes('wrap')) || label.includes('burger') || label.includes('main')) {
         if (!steps.includes('burger')) steps.push('burger');
-        counts.burger = comp.quantity || 1;
+        counts.burger += comp.quantity || 1;
         burgerCategories.push(...categories);
+        stepConfigs.burger = {
+          categories: [...new Set([...stepConfigs.burger.categories, ...categories])],
+          count: counts.burger,
+          label: comp.label || 'Burger',
+        };
       } else if (lowerCategories.some((c: string) => c.includes('drink')) || label.includes('drink')) {
         if (!steps.includes('drink')) steps.push('drink');
-        counts.drink = comp.quantity || 1;
-      } else if (lowerCategories.some((c: string) => c.includes('fries') || c.includes('side') || c.includes('sauce')) || label.includes('side') || label.includes('sauce')) {
+        counts.drink += comp.quantity || 1;
+        stepConfigs.drink = {
+          categories: [...new Set([...stepConfigs.drink.categories, ...categories])],
+          count: counts.drink,
+          label: comp.label || 'Drink',
+        };
+      } else if (lowerCategories.some((c: string) => 
+        c.includes('fries') || c.includes('side') || c.includes('sauce') || c.includes('tenders') || c.includes('wings')
+      ) || label.includes('side') || label.includes('sauce') || label.includes('fries')) {
         if (!steps.includes('side')) steps.push('side');
         counts.side += comp.quantity || 1;
+        // Add these categories to the side step
+        const newCategories = categories.length > 0 ? categories : ['Fries', 'Sides'];
+        stepConfigs.side = {
+          categories: [...new Set([...stepConfigs.side.categories, ...newCategories])],
+          count: counts.side,
+          label: comp.label || 'Side',
+        };
       }
     });
 
@@ -96,7 +129,7 @@ const getMealConfig = (meal: any): MealConfig => {
       counts.drink = 1;
     }
 
-    return { steps, burgerCategories, counts };
+    return { steps, burgerCategories, counts, stepConfigs };
   }
 
   // Fallback to title-based logic
@@ -144,6 +177,7 @@ const getMealConfig = (meal: any): MealConfig => {
         side: counts.side || 1,
         drink: counts.drink || 1,
       },
+      stepConfigs: defaultStepConfigs,
     };
   }
 
@@ -152,6 +186,10 @@ const getMealConfig = (meal: any): MealConfig => {
       steps: ['burger', 'side', 'drink'],
       burgerCategories: ['Wrap'],
       counts,
+      stepConfigs: {
+        ...defaultStepConfigs,
+        burger: { categories: ['Wrap'], count: counts.burger, label: 'Wrap' },
+      },
     };
   }
 
@@ -160,6 +198,10 @@ const getMealConfig = (meal: any): MealConfig => {
       steps: ['burger', 'side', 'drink'],
       burgerCategories: ['Smash Burgers'],
       counts,
+      stepConfigs: {
+        ...defaultStepConfigs,
+        burger: { categories: ['Smash Burgers'], count: counts.burger, label: 'Burger' },
+      },
     };
   }
 
@@ -168,6 +210,7 @@ const getMealConfig = (meal: any): MealConfig => {
     steps: ['burger', 'side', 'drink'],
     burgerCategories: ['Chicken Burgers', 'Smash Burgers'],
     counts,
+    stepConfigs: defaultStepConfigs,
   };
 };
 
@@ -224,26 +267,51 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
   const getCurrentStepItems = () => {
     if (!config) return [];
     const step = config.steps[activeStep];
+    const stepConfig = config.stepConfigs[step];
 
     if (step === 'burger') {
       const items: any[] = [];
-      config.burgerCategories.forEach(cat => {
+      // Use stepConfig categories if available, otherwise burgerCategories
+      const categories = stepConfig?.categories?.length > 0 
+        ? stepConfig.categories 
+        : (config.burgerCategories.length > 0 ? config.burgerCategories : ['Chicken Burgers', 'Smash Burgers']);
+      
+      categories.forEach(cat => {
         if (itemsByCategory[cat]) items.push(...itemsByCategory[cat]);
       });
       return items;
     }
 
     if (step === 'drink') {
-      return itemsByCategory['Drinks'] || [];
+      const categories = stepConfig?.categories?.length > 0 
+        ? stepConfig.categories 
+        : ['Drinks'];
+      
+      const items: any[] = [];
+      categories.forEach(cat => {
+        if (itemsByCategory[cat]) items.push(...itemsByCategory[cat]);
+      });
+      return items.length > 0 ? items : (itemsByCategory['Drinks'] || []);
     }
 
     if (step === 'side') {
-      // Default sides (include Fries + Sides)
-      const fries = itemsByCategory['Fries'] || [];
-      const sides = itemsByCategory['Sides'] || [];
-      const merged = [...fries, ...sides];
+      // Use stepConfig categories for sides (includes Fries, Sides, Sauces, etc.)
+      const categories = stepConfig?.categories?.length > 0 
+        ? stepConfig.categories 
+        : ['Fries', 'Sides'];
+      
+      const items: any[] = [];
+      categories.forEach(cat => {
+        if (itemsByCategory[cat]) items.push(...itemsByCategory[cat]);
+      });
+      
+      // Also include Tenders & Wings for upgrade options
+      const tendersWings = itemsByCategory['Tenders & Wings'] || [];
+      items.push(...tendersWings);
+      
+      // Deduplicate
       const seen = new Set<string>();
-      return merged.filter((i) => {
+      return items.filter((i) => {
         if (seen.has(i.id)) return false;
         seen.add(i.id);
         return true;
