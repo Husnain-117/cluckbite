@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, ArrowUp } from 'lucide-react';
+import { Plus, Trash2, ArrowUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface MealComponent {
   category: string;
@@ -41,20 +43,42 @@ interface MealConfigEditorProps {
   categories: { id: string; name: string }[];
 }
 
-const availableCategories = [
-  'Chicken Burgers',
-  'Smash Burgers',
-  'Wrap',
-  'Fries',
-  'Drinks',
-  'Tenders & Wings',
-  'Sides',
-  'Doner',
-  'Rice Bowl',
-  'Dessert',
-];
+const MealConfigEditor = ({ config, onChange, categories: propCategories }: MealConfigEditorProps) => {
+  // Fetch categories from database
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['meal-config-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-const MealConfigEditor = ({ config, onChange, categories }: MealConfigEditorProps) => {
+  // Also fetch addon categories (for sauces, etc.)
+  const { data: addonCategories = [] } = useQuery({
+    queryKey: ['meal-config-addon-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('addon_categories')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Combine menu categories and addon categories
+  const allCategories = React.useMemo(() => {
+    const menuCats = dbCategories.map(c => ({ id: c.id, name: c.name, type: 'menu' as const }));
+    const addonCats = addonCategories.map(c => ({ id: c.id, name: c.name, type: 'addon' as const }));
+    return [...menuCats, ...addonCats];
+  }, [dbCategories, addonCategories]);
+
   const addComponent = () => {
     onChange({
       ...config,
@@ -81,7 +105,7 @@ const MealConfigEditor = ({ config, onChange, categories }: MealConfigEditorProp
       ...config,
       upgrades: [
         ...config.upgrades,
-        { from_category: 'Fries', to_categories: ['Tenders & Wings'], price_diff: 2, label: 'Upgrade' },
+        { from_category: '', to_categories: [], price_diff: 2, label: 'Upgrade' },
       ],
     });
   };
@@ -116,20 +140,53 @@ const MealConfigEditor = ({ config, onChange, categories }: MealConfigEditorProp
           </Button>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Define what items are included in this meal deal. For multiple categories, separate with comma (e.g., "Chicken Burgers,Smash Burgers")
+          Define what items are included in this meal. Each component becomes a selection step when ordering.
         </p>
         
         <div className="space-y-3">
           {config.components.map((component, index) => (
             <div key={index} className="flex flex-wrap items-center gap-3 p-3 bg-background rounded-lg border border-border">
               <div className="flex-1 min-w-[200px]">
-                <Label className="text-xs text-muted-foreground">Categories (comma-separated)</Label>
-                <Input
+                <Label className="text-xs text-muted-foreground">Category</Label>
+                <Select
                   value={component.category}
-                  onChange={(e) => updateComponent(index, { category: e.target.value })}
-                  placeholder="e.g., Chicken Burgers,Smash Burgers"
-                  className="mt-1"
-                />
+                  onValueChange={(value) => {
+                    updateComponent(index, { category: value });
+                    // Auto-fill label if empty
+                    if (!component.label) {
+                      updateComponent(index, { category: value, label: value });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select a category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="" disabled>Select a category</SelectItem>
+                    {allCategories.length > 0 ? (
+                      <>
+                        {dbCategories.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Menu Categories</div>
+                            {dbCategories.map(cat => (
+                              <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                            ))}
+                          </>
+                        )}
+                        {addonCategories.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Add-on Categories</div>
+                            {addonCategories.map(cat => (
+                              <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="w-24">
@@ -148,7 +205,7 @@ const MealConfigEditor = ({ config, onChange, categories }: MealConfigEditorProp
                 <Input
                   value={component.label}
                   onChange={(e) => updateComponent(index, { label: e.target.value })}
-                  placeholder="e.g., Burger, Drink"
+                  placeholder="e.g., Burger, Drink, Sauce"
                   className="mt-1"
                 />
               </div>
@@ -219,11 +276,11 @@ const MealConfigEditor = ({ config, onChange, categories }: MealConfigEditorProp
                     onValueChange={(v) => updateUpgrade(index, { from_category: v })}
                   >
                     <SelectTrigger className="mt-1">
-                      <SelectValue />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableCategories.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      {allCategories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -265,14 +322,14 @@ const MealConfigEditor = ({ config, onChange, categories }: MealConfigEditorProp
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">Upgrade To (select categories):</Label>
                 <div className="flex flex-wrap gap-2">
-                  {availableCategories.filter(c => c !== upgrade.from_category).map(cat => (
+                  {allCategories.filter(c => c.name !== upgrade.from_category).map(cat => (
                     <Badge
-                      key={cat}
-                      variant={upgrade.to_categories.includes(cat) ? 'default' : 'outline'}
+                      key={cat.id}
+                      variant={upgrade.to_categories.includes(cat.name) ? 'default' : 'outline'}
                       className="cursor-pointer"
-                      onClick={() => toggleToCategory(index, cat)}
+                      onClick={() => toggleToCategory(index, cat.name)}
                     >
-                      {cat}
+                      {cat.name}
                     </Badge>
                   ))}
                 </div>
