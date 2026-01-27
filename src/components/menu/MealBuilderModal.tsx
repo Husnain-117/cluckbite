@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +24,8 @@ export interface MealSelection {
   drinks: { item: any; quantity: number }[];
   sides: { item: any; quantity: number }[];
   upgrades: { category: string; item: any; priceDiff: number; quantity: number }[];
+  // New: generic selections by step index
+  selections: Record<number, { item: any; quantity: number }[]>;
 }
 
 interface MealBuilderModalProps {
@@ -34,226 +35,116 @@ interface MealBuilderModalProps {
   onAddToCart: (meal: any, selections: MealSelection, totalPrice: number) => void;
 }
 
-type MealStep = 'burger' | 'side' | 'drink';
+interface MealComponent {
+  category: string;
+  quantity: number;
+  required: boolean;
+  label: string;
+  upgradeable?: boolean;
+}
 
-interface StepConfig {
-  categories: string[];
-  count: number;
+interface MealUpgrade {
+  from_category: string;
+  to_categories: string[];
+  price_diff: number;
   label: string;
 }
 
-type MealConfig = {
-  steps: MealStep[];
-  stepConfigs: Record<MealStep, StepConfig>;
-  burgerCategories: string[];
-  counts: Record<MealStep, number>;
-};
+interface DynamicStep {
+  index: number;
+  category: string;
+  label: string;
+  quantity: number;
+  required: boolean;
+  upgradeable: boolean;
+}
 
-const parseMealCountsFromText = (text: string) => {
-  const result: Partial<Record<MealStep, number>> = {};
-  const lower = (text || '').toLowerCase();
+interface DynamicMealConfig {
+  steps: DynamicStep[];
+  upgrades: MealUpgrade[];
+}
 
-  const matches = lower.matchAll(/\b(\d+)\s+(chicken\s+)?(burger|burgers|drink|drinks|side|sides|fries)\b/g);
-  for (const m of matches) {
-    const count = Number(m[1]);
-    const noun = m[3];
-    if (Number.isNaN(count) || count <= 0) continue;
+// Parse meal config from database
+const getMealConfig = (meal: any): DynamicMealConfig => {
+  const components = meal?.meal_config?.components as MealComponent[] | undefined;
+  const upgrades = (meal?.meal_config?.upgrades as MealUpgrade[]) || [];
 
-    if (noun.startsWith('burger')) result.burger = Math.max(result.burger ?? 0, count);
-    if (noun.startsWith('drink')) result.drink = Math.max(result.drink ?? 0, count);
-    if (noun.startsWith('side') || noun.startsWith('fries')) result.side = Math.max(result.side ?? 0, count);
-  }
-  return result;
-};
+  // If we have database-defined components, use them
+  if (components && components.length > 0) {
+    const steps: DynamicStep[] = components.map((comp, idx) => ({
+      index: idx,
+      category: comp.category || '',
+      label: comp.label || comp.category || `Item ${idx + 1}`,
+      quantity: comp.quantity || 1,
+      required: comp.required !== false,
+      upgradeable: comp.upgradeable || false,
+    }));
 
-// Parse meal config from database or use smart defaults
-const getMealConfig = (meal: any): MealConfig => {
-  const defaultStepConfigs: Record<MealStep, StepConfig> = {
-    burger: { categories: ['Chicken Burgers', 'Smash Burgers'], count: 1, label: 'Burger' },
-    side: { categories: ['Fries', 'Sides'], count: 1, label: 'Side' },
-    drink: { categories: ['Drinks'], count: 1, label: 'Drink' },
-  };
-
-  // If meal has a database config, use it to build the steps
-  if (meal?.meal_config?.components && meal.meal_config.components.length > 0) {
-    const components = meal.meal_config.components;
-    const steps: MealStep[] = [];
-    const counts: Record<MealStep, number> = { burger: 0, side: 0, drink: 0 };
-    const stepConfigs: Record<MealStep, StepConfig> = { ...defaultStepConfigs };
-    const burgerCategories: string[] = [];
-
-    components.forEach((comp: any) => {
-      const categories = (comp.category || '').split(',').map((c: string) => c.trim()).filter(Boolean);
-      
-      // Determine which step this component maps to
-      const lowerCategories = categories.map((c: string) => c.toLowerCase());
-      const label = (comp.label || '').toLowerCase();
-      
-      if (lowerCategories.some((c: string) => c.includes('burger') || c.includes('wrap')) || label.includes('burger') || label.includes('main')) {
-        if (!steps.includes('burger')) steps.push('burger');
-        counts.burger += comp.quantity || 1;
-        burgerCategories.push(...categories);
-        stepConfigs.burger = {
-          categories: [...new Set([...stepConfigs.burger.categories, ...categories])],
-          count: counts.burger,
-          label: comp.label || 'Burger',
-        };
-      } else if (lowerCategories.some((c: string) => c.includes('drink')) || label.includes('drink')) {
-        if (!steps.includes('drink')) steps.push('drink');
-        counts.drink += comp.quantity || 1;
-        stepConfigs.drink = {
-          categories: [...new Set([...stepConfigs.drink.categories, ...categories])],
-          count: counts.drink,
-          label: comp.label || 'Drink',
-        };
-      } else if (lowerCategories.some((c: string) => 
-        c.includes('fries') || c.includes('side') || c.includes('sauce') || c.includes('tenders') || c.includes('wings')
-      ) || label.includes('side') || label.includes('sauce') || label.includes('fries')) {
-        if (!steps.includes('side')) steps.push('side');
-        counts.side += comp.quantity || 1;
-        // Add these categories to the side step
-        const newCategories = categories.length > 0 ? categories : ['Fries', 'Sides'];
-        stepConfigs.side = {
-          categories: [...new Set([...stepConfigs.side.categories, ...newCategories])],
-          count: counts.side,
-          label: comp.label || 'Side',
-        };
-      }
-    });
-
-    // Ensure we have at least some steps
-    if (steps.length === 0) {
-      steps.push('burger', 'side', 'drink');
-      counts.burger = 1;
-      counts.side = 1;
-      counts.drink = 1;
-    }
-
-    return { steps, burgerCategories, counts, stepConfigs };
+    return { steps, upgrades };
   }
 
-  // Fallback to title-based logic
+  // Fallback: Create default steps based on title
   const title = (meal?.title || '').toLowerCase();
-  const countsFromDesc = parseMealCountsFromText(meal?.description || '');
-
-  const defaultCounts: Record<MealStep, number> = {
-    burger: 1,
-    side: 1,
-    drink: 1,
-  };
-
-  // Common named deals
+  
+  let burgerCount = 1, sideCount = 1, drinkCount = 1;
+  
   if (title.includes('meal for two') || title.includes('for two')) {
-    defaultCounts.burger = 2;
-    defaultCounts.side = 2;
-    defaultCounts.drink = 2;
+    burgerCount = 2; sideCount = 2; drinkCount = 2;
+  } else if (title.includes('family')) {
+    burgerCount = 4; sideCount = 4; drinkCount = 4;
   }
 
-  if (title.includes('family')) {
-    defaultCounts.burger = 4;
-    defaultCounts.side = 4;
-    defaultCounts.drink = 4;
-  }
+  const defaultSteps: DynamicStep[] = [
+    { index: 0, category: 'Chicken Burgers', label: 'Burger', quantity: burgerCount, required: true, upgradeable: false },
+    { index: 1, category: 'Fries', label: 'Side', quantity: sideCount, required: false, upgradeable: true },
+    { index: 2, category: 'Drinks', label: 'Drink', quantity: drinkCount, required: false, upgradeable: false },
+  ];
 
-  if (title.includes('meal for one') || title.includes('for one')) {
-    defaultCounts.burger = 1;
-    defaultCounts.side = 1;
-    defaultCounts.drink = 1;
-  }
-
-  // Override from description if we can infer counts
-  const counts: Record<MealStep, number> = {
-    burger: countsFromDesc.burger ?? defaultCounts.burger,
-    side: countsFromDesc.side ?? defaultCounts.side,
-    drink: countsFromDesc.drink ?? defaultCounts.drink,
-  };
-
-  if (title.includes('kids')) {
-    return {
-      steps: ['side', 'drink'],
-      burgerCategories: [],
-      counts: {
-        burger: 0,
-        side: counts.side || 1,
-        drink: counts.drink || 1,
-      },
-      stepConfigs: defaultStepConfigs,
-    };
-  }
-
-  if (title.includes('wrap')) {
-    return {
-      steps: ['burger', 'side', 'drink'],
-      burgerCategories: ['Wrap'],
-      counts,
-      stepConfigs: {
-        ...defaultStepConfigs,
-        burger: { categories: ['Wrap'], count: counts.burger, label: 'Wrap' },
-      },
-    };
-  }
-
-  if (title.includes('smash') || title.includes('solo smash') || title.includes('knockout')) {
-    return {
-      steps: ['burger', 'side', 'drink'],
-      burgerCategories: ['Smash Burgers'],
-      counts,
-      stepConfigs: {
-        ...defaultStepConfigs,
-        burger: { categories: ['Smash Burgers'], count: counts.burger, label: 'Burger' },
-      },
-    };
-  }
-
-  // Default - chicken burgers
-  return {
-    steps: ['burger', 'side', 'drink'],
-    burgerCategories: ['Chicken Burgers', 'Smash Burgers'],
-    counts,
-    stepConfigs: defaultStepConfigs,
-  };
-};
-
-// Define upgrade options (e.g., fries -> wings)
-const upgradeOptions: Record<string, { to: string[]; priceIncrease: number }> = {
-  'Fries': { to: ['Tenders & Wings', 'Sides'], priceIncrease: 2.00 },
+  return { steps: defaultSteps, upgrades };
 };
 
 const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderModalProps) => {
   const [quantity, setQuantity] = useState(1);
   const [activeStep, setActiveStep] = useState(0);
-  const [selection, setSelection] = useState<{
-    burger: Record<string, { item: any; quantity: number }>;
-    side: Record<string, { item: any; quantity: number }>;
-    drink: Record<string, { item: any; quantity: number }>;
-    upgrades: { category: string; item: any; priceDiff: number; quantity: number }[];
-  }>({
-    burger: {},
-    side: {},
-    drink: {},
-    upgrades: [],
-  });
-  const [showUpgradeOptions, setShowUpgradeOptions] = useState(false);
+  // Selection per step index: { stepIndex: { itemId: { item, quantity } } }
+  const [selections, setSelections] = useState<Record<number, Record<string, { item: any; quantity: number }>>>({});
+  const [upgradeSelections, setUpgradeSelections] = useState<{ stepIndex: number; item: any; priceDiff: number; quantity: number }[]>([]);
+  const [showUpgradePanel, setShowUpgradePanel] = useState(false);
 
   const config = useMemo(() => (meal ? getMealConfig(meal) : null), [meal]);
 
-  // Fetch menu items for building meals
-  const { data: menuItems = [], isLoading } = useQuery({
+  // Fetch menu items
+  const { data: menuItems = [], isLoading: loadingMenu } = useQuery({
     queryKey: ['menu-items-for-meals'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
         .eq('is_available', true)
-        .order('category', { ascending: true });
-
+        .order('title');
       if (error) throw error;
       return data;
     },
     enabled: isOpen,
   });
 
-  // Group items by category
+  // Fetch addons (for addon categories like Sauces)
+  const { data: addons = [], isLoading: loadingAddons } = useQuery({
+    queryKey: ['addons-for-meals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('addons')
+        .select('*, addon_categories(name)')
+        .eq('is_available', true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: isOpen,
+  });
+
+  const isLoading = loadingMenu || loadingAddons;
+
+  // Group menu items by category
   const itemsByCategory = useMemo(() => {
     const grouped: Record<string, any[]> = {};
     menuItems.forEach(item => {
@@ -263,210 +154,212 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
     return grouped;
   }, [menuItems]);
 
-  // Get items for current step
-  const getCurrentStepItems = () => {
-    if (!config) return [];
-    const step = config.steps[activeStep];
-    const stepConfig = config.stepConfigs[step];
+  // Group addons by their category name
+  const addonsByCategory = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    addons.forEach(addon => {
+      const catName = addon.addon_categories?.name || 'Other';
+      if (!grouped[catName]) grouped[catName] = [];
+      grouped[catName].push({ ...addon, title: addon.name, isAddon: true });
+    });
+    return grouped;
+  }, [addons]);
 
-    if (step === 'burger') {
-      const items: any[] = [];
-      // Use stepConfig categories if available, otherwise burgerCategories
-      const categories = stepConfig?.categories?.length > 0 
-        ? stepConfig.categories 
-        : (config.burgerCategories.length > 0 ? config.burgerCategories : ['Chicken Burgers', 'Smash Burgers']);
-      
-      categories.forEach(cat => {
-        if (itemsByCategory[cat]) items.push(...itemsByCategory[cat]);
-      });
-      return items;
+  // Get items for a specific step based on its category
+  const getStepItems = (step: DynamicStep): any[] => {
+    const category = step.category;
+    if (!category) return [];
+
+    // Check menu items first
+    if (itemsByCategory[category]) {
+      return itemsByCategory[category];
     }
 
-    if (step === 'drink') {
-      const categories = stepConfig?.categories?.length > 0 
-        ? stepConfig.categories 
-        : ['Drinks'];
-      
-      const items: any[] = [];
-      categories.forEach(cat => {
-        if (itemsByCategory[cat]) items.push(...itemsByCategory[cat]);
-      });
-      return items.length > 0 ? items : (itemsByCategory['Drinks'] || []);
+    // Check addon categories (e.g., "Sauces")
+    if (addonsByCategory[category]) {
+      return addonsByCategory[category];
     }
 
-    if (step === 'side') {
-      // Use stepConfig categories for sides (includes Fries, Sides, Sauces, etc.)
-      const categories = stepConfig?.categories?.length > 0 
-        ? stepConfig.categories 
-        : ['Fries', 'Sides'];
-      
-      const items: any[] = [];
-      categories.forEach(cat => {
-        if (itemsByCategory[cat]) items.push(...itemsByCategory[cat]);
-      });
-      
-      // Also include Tenders & Wings for upgrade options
-      const tendersWings = itemsByCategory['Tenders & Wings'] || [];
-      items.push(...tendersWings);
-      
-      // Deduplicate
-      const seen = new Set<string>();
-      return items.filter((i) => {
-        if (seen.has(i.id)) return false;
-        seen.add(i.id);
-        return true;
-      });
+    // Fuzzy match - try to find similar category names
+    const lowerCat = category.toLowerCase();
+    
+    // Search in menu items
+    for (const [cat, items] of Object.entries(itemsByCategory)) {
+      if (cat.toLowerCase().includes(lowerCat) || lowerCat.includes(cat.toLowerCase())) {
+        return items;
+      }
+    }
+    
+    // Search in addon categories
+    for (const [cat, items] of Object.entries(addonsByCategory)) {
+      if (cat.toLowerCase().includes(lowerCat) || lowerCat.includes(cat.toLowerCase())) {
+        return items;
+      }
     }
 
     return [];
   };
 
-  const getUpgradeItems = () => {
-    // Items that can be upgraded to (wings, tenders, etc.)
-    const upgradeItems: any[] = [];
-    const tendersAndWings = itemsByCategory['Tenders & Wings'] || [];
-    const sides = itemsByCategory['Sides'] || [];
-    upgradeItems.push(...tendersAndWings, ...sides);
-    return upgradeItems;
-  };
+  // Get upgrade items for a step (if upgradeable)
+  const getUpgradeItemsForStep = (step: DynamicStep): any[] => {
+    if (!step.upgradeable || !config) return [];
+    
+    // Find upgrade rules that match this step's category
+    const upgrade = config.upgrades.find(u => u.from_category === step.category);
+    if (!upgrade) {
+      // Default: allow upgrade to Tenders & Wings
+      return itemsByCategory['Tenders & Wings'] || itemsByCategory['Wings'] || [];
+    }
 
-  const getSelectedCount = (step: MealStep) => {
-    const entries = Object.values(selection[step]);
-    return entries.reduce((sum, e) => sum + e.quantity, 0);
-  };
-
-  const getStepLimit = (step: MealStep) => {
-    return config?.counts?.[step] ?? 0;
-  };
-
-  // Calculate total price
-  const calculateTotal = () => {
-    let totalAmount = Number(meal?.price || 0);
-    selection.upgrades.forEach((u) => {
-      totalAmount += u.priceDiff * u.quantity;
+    const items: any[] = [];
+    upgrade.to_categories.forEach(toCat => {
+      if (itemsByCategory[toCat]) items.push(...itemsByCategory[toCat]);
+      if (addonsByCategory[toCat]) items.push(...addonsByCategory[toCat]);
     });
-    return totalAmount * quantity;
+    return items;
   };
 
-  const handleAdjustSelection = (item: any, type: MealStep, delta: number) => {
-    setSelection((prev) => {
-      const limit = getStepLimit(type);
-      const currentCount = Object.values(prev[type]).reduce((sum, e) => sum + e.quantity, 0);
+  const getSelectedCount = (stepIndex: number): number => {
+    const stepSelections = selections[stepIndex] || {};
+    return Object.values(stepSelections).reduce((sum, e) => sum + e.quantity, 0);
+  };
 
-      // Prevent exceeding limits when incrementing
-      if (delta > 0 && currentCount >= limit) {
-        return prev;
-      }
+  const handleAdjustSelection = (stepIndex: number, item: any, delta: number) => {
+    const step = config?.steps[stepIndex];
+    if (!step) return;
 
-      const current = prev[type][item.id]?.quantity || 0;
-      const nextQty = Math.max(0, current + delta);
-      const nextMap = { ...prev[type] };
-      const nextUpgrades = [...prev.upgrades];
+    setSelections(prev => {
+      const stepData = prev[stepIndex] || {};
+      const currentCount = Object.values(stepData).reduce((sum, e) => sum + e.quantity, 0);
+      const limit = step.quantity;
 
-      const isUpgradeSide = type === 'side' && item.category === 'Tenders & Wings';
-      const upgradePrice = 2.0;
+      // Prevent exceeding limit when adding
+      if (delta > 0 && currentCount >= limit) return prev;
 
+      const currentQty = stepData[item.id]?.quantity || 0;
+      const nextQty = Math.max(0, currentQty + delta);
+
+      const newStepData = { ...stepData };
       if (nextQty === 0) {
-        delete nextMap[item.id];
+        delete newStepData[item.id];
       } else {
-        nextMap[item.id] = { item, quantity: nextQty };
+        newStepData[item.id] = { item, quantity: nextQty };
       }
 
-      if (type === 'side') {
-        // Track upgrades for upgraded side categories
-        const existingUpgradeIndex = nextUpgrades.findIndex((u) => u.category === 'side' && u.item?.id === item.id);
-
-        if (isUpgradeSide && nextQty > 0) {
-          if (existingUpgradeIndex >= 0) {
-            nextUpgrades[existingUpgradeIndex] = {
-              ...nextUpgrades[existingUpgradeIndex],
-              quantity: nextQty,
-              priceDiff: upgradePrice,
-            };
-          } else {
-            nextUpgrades.push({ category: 'side', item, priceDiff: upgradePrice, quantity: nextQty });
-          }
-        } else if (existingUpgradeIndex >= 0) {
-          nextUpgrades.splice(existingUpgradeIndex, 1);
-        }
-      }
-
-      return {
-        ...prev,
-        [type]: nextMap,
-        upgrades: nextUpgrades,
-      };
+      return { ...prev, [stepIndex]: newStepData };
     });
   };
 
-  const handleUpgrade = (item: any, upgradePrice: number) => {
-    // Upgrades are treated as side selections with an extra cost
-    handleAdjustSelection(item, 'side', 1);
-    setSelection((prev) => {
-      const existingIndex = prev.upgrades.findIndex((u) => u.category === 'side' && u.item?.id === item.id);
-      if (existingIndex >= 0) {
-        const next = [...prev.upgrades];
-        next[existingIndex] = { ...next[existingIndex], priceDiff: upgradePrice };
-        return { ...prev, upgrades: next };
+  const handleUpgradeSelection = (stepIndex: number, item: any, priceDiff: number) => {
+    const step = config?.steps[stepIndex];
+    if (!step) return;
+
+    // Add to selections
+    handleAdjustSelection(stepIndex, item, 1);
+
+    // Track upgrade price
+    setUpgradeSelections(prev => {
+      const existing = prev.findIndex(u => u.stepIndex === stepIndex && u.item?.id === item.id);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = { ...updated[existing], quantity: updated[existing].quantity + 1 };
+        return updated;
       }
-      return { ...prev, upgrades: [...prev.upgrades, { category: 'side', item, priceDiff: upgradePrice, quantity: 1 }] };
+      return [...prev, { stepIndex, item, priceDiff, quantity: 1 }];
     });
-    setShowUpgradeOptions(false);
+
+    setShowUpgradePanel(false);
+  };
+
+  const calculateTotal = (): number => {
+    let total = Number(meal?.price || 0);
+    
+    // Add upgrade costs
+    upgradeSelections.forEach(u => {
+      total += u.priceDiff * u.quantity;
+    });
+
+    return total * quantity;
+  };
+
+  const isStepComplete = (stepIndex: number): boolean => {
+    if (!config) return false;
+    const step = config.steps[stepIndex];
+    if (!step.required) return true;
+    return getSelectedCount(stepIndex) >= step.quantity;
+  };
+
+  const canProceed = (): boolean => {
+    if (!config) return false;
+    const step = config.steps[activeStep];
+    if (!step.required) return true;
+    return getSelectedCount(activeStep) >= step.quantity;
+  };
+
+  const isLastStep = (): boolean => {
+    if (!config) return false;
+    return activeStep === config.steps.length - 1;
   };
 
   const handleNext = () => {
     if (!config) return;
     if (activeStep < config.steps.length - 1) {
       setActiveStep(activeStep + 1);
+      setShowUpgradePanel(false);
     }
   };
 
   const handlePrev = () => {
     if (activeStep > 0) {
       setActiveStep(activeStep - 1);
+      setShowUpgradePanel(false);
     }
   };
 
   const handleSkip = () => {
     if (!config) return;
-    const step = config.steps[activeStep];
-    setSelection((prev) => ({ ...prev, [step]: {} }));
+    setSelections(prev => ({ ...prev, [activeStep]: {} }));
     handleNext();
   };
 
-  const isStepComplete = (stepIndex: number) => {
-    if (!config) return false;
-    const step = config.steps[stepIndex];
-    return getSelectedCount(step) >= (config.counts[step] || 0);
-  };
-
-  const canProceed = () => {
-    if (!config) return false;
-    const step = config.steps[activeStep];
-    const limit = config.counts[step] || 0;
-    if (limit <= 0) return true;
-    return getSelectedCount(step) >= limit;
-  };
-
-  const isLastStep = () => {
-    if (!config) return false;
-    return activeStep === config.steps.length - 1;
-  };
-
   const handleAddToCart = () => {
-    const toArray = (map: Record<string, { item: any; quantity: number }>) =>
-      Object.values(map).map((v) => ({ item: v.item, quantity: v.quantity }));
+    if (!config) return;
+
+    // Build selection output
+    const burgers: { item: any; quantity: number }[] = [];
+    const sides: { item: any; quantity: number }[] = [];
+    const drinks: { item: any; quantity: number }[] = [];
+    const genericSelections: Record<number, { item: any; quantity: number }[]> = {};
+
+    config.steps.forEach((step, idx) => {
+      const stepData = selections[idx] || {};
+      const items = Object.values(stepData);
+      genericSelections[idx] = items;
+
+      // Categorize for backward compatibility
+      const lowerLabel = step.label.toLowerCase();
+      const lowerCat = step.category.toLowerCase();
+      
+      if (lowerLabel.includes('burger') || lowerCat.includes('burger') || lowerCat.includes('wrap')) {
+        burgers.push(...items);
+      } else if (lowerLabel.includes('drink') || lowerCat.includes('drink') || lowerCat.includes('beverage')) {
+        drinks.push(...items);
+      } else {
+        sides.push(...items);
+      }
+    });
 
     const normalized: MealSelection = {
-      burgers: toArray(selection.burger),
-      sides: toArray(selection.side),
-      drinks: toArray(selection.drink),
-      upgrades: selection.upgrades.map((u) => ({
-        category: u.category,
+      burgers,
+      sides,
+      drinks,
+      upgrades: upgradeSelections.map(u => ({
+        category: config.steps[u.stepIndex]?.category || '',
         item: u.item,
         priceDiff: u.priceDiff,
         quantity: u.quantity,
       })),
+      selections: genericSelections,
     };
 
     onAddToCart(meal, normalized, calculateTotal());
@@ -476,43 +369,41 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
   const handleClose = () => {
     setQuantity(1);
     setActiveStep(0);
-    setSelection({ burger: {}, drink: {}, side: {}, upgrades: [] });
-    setShowUpgradeOptions(false);
+    setSelections({});
+    setUpgradeSelections([]);
+    setShowUpgradePanel(false);
     onClose();
   };
 
-  // Reset when meal changes
+  // Reset on meal change
   useEffect(() => {
     if (isOpen && meal) {
       setActiveStep(0);
-      setSelection({ burger: {}, drink: {}, side: {}, upgrades: [] });
-      setShowUpgradeOptions(false);
+      setSelections({});
+      setUpgradeSelections([]);
+      setShowUpgradePanel(false);
     }
   }, [isOpen, meal?.id]);
 
   if (!meal || !config) return null;
 
   const currentStep = config.steps[activeStep];
-  const currentItems = getCurrentStepItems();
-  const upgradeItems = getUpgradeItems();
+  const currentItems = currentStep ? getStepItems(currentStep) : [];
+  const upgradeItems = currentStep ? getUpgradeItemsForStep(currentStep) : [];
+  const currentSelected = getSelectedCount(activeStep);
 
-  const currentLimit = config.counts[currentStep] || 0;
-  const currentSelected = getSelectedCount(currentStep);
-
-  const stepLabels: Record<string, string> = {
-    burger: '🍔 Choose Your Burger',
-    drink: '🥤 Choose Your Drink',
-    side: '🍟 Choose Your Side',
-  };
-
-  const categoryEmojis: Record<string, string> = {
-    'Chicken Burgers': '🍔',
-    'Smash Burgers': '🍔',
-    'Fries': '🍟',
-    'Drinks': '🥤',
-    'Tenders & Wings': '🍗',
-    'Sides': '🍟',
-    'Wrap': '🌯',
+  // Emoji mapping
+  const getCategoryEmoji = (category: string, label: string): string => {
+    const lower = (category + ' ' + label).toLowerCase();
+    if (lower.includes('burger')) return '🍔';
+    if (lower.includes('wrap')) return '🌯';
+    if (lower.includes('drink') || lower.includes('beverage')) return '🥤';
+    if (lower.includes('fries')) return '🍟';
+    if (lower.includes('sauce')) return '🫙';
+    if (lower.includes('wing') || lower.includes('tender')) return '🍗';
+    if (lower.includes('side')) return '🍟';
+    if (lower.includes('dessert')) return '🍰';
+    return '🍽️';
   };
 
   return (
@@ -534,23 +425,23 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
           </div>
 
           {/* Progress Steps */}
-          <div className="flex items-center gap-2 mt-4">
+          <div className="flex items-center gap-2 mt-4 flex-wrap">
             {config.steps.map((step, idx) => (
-              <React.Fragment key={step}>
+              <React.Fragment key={idx}>
                 <button
-                  onClick={() => setActiveStep(idx)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${idx === activeStep
-                    ? 'bg-primary text-primary-foreground'
-                    : isStepComplete(idx)
-                      ? 'bg-green-500/20 text-green-500'
-                      : 'bg-muted text-muted-foreground'
-                    }`}
+                  onClick={() => { setActiveStep(idx); setShowUpgradePanel(false); }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    idx === activeStep
+                      ? 'bg-primary text-primary-foreground'
+                      : isStepComplete(idx)
+                        ? 'bg-green-500/20 text-green-600 dark:text-green-400'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
                 >
                   {isStepComplete(idx) && idx !== activeStep && <Check className="h-3 w-3" />}
-                  {step === 'burger' && '🍔'}
-                  {step === 'drink' && '🥤'}
-                  {step === 'side' && '🍟'}
-                  <span className="capitalize">{step}</span>
+                  <span>{getCategoryEmoji(step.category, step.label)}</span>
+                  <span>{step.label}</span>
+                  {step.required && <span className="text-xs">*</span>}
                 </button>
                 {idx < config.steps.length - 1 && (
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -563,12 +454,13 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col p-4">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <h3 className="text-lg font-semibold">{stepLabels[currentStep]}</h3>
-            {currentLimit > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {currentSelected}/{currentLimit} selected
-              </Badge>
-            )}
+            <h3 className="text-lg font-semibold">
+              {getCategoryEmoji(currentStep.category, currentStep.label)} Choose Your {currentStep.label}
+              {currentStep.required && <span className="text-destructive ml-1">*</span>}
+            </h3>
+            <Badge variant="outline" className="text-xs">
+              {currentSelected}/{currentStep.quantity} selected
+            </Badge>
           </div>
 
           {isLoading ? (
@@ -577,31 +469,42 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                 <Skeleton key={i} className="h-24 rounded-xl" />
               ))}
             </div>
+          ) : currentItems.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No items found for "{currentStep.category}"</p>
+              <p className="text-sm mt-2">Please add items to this category in the admin panel.</p>
+            </div>
           ) : (
             <div className="flex-1 overflow-y-auto pr-2 pb-24">
               {/* Regular items */}
-              {!showUpgradeOptions && (
+              {!showUpgradePanel && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {currentItems.map((item) => {
-                    const currentQty = selection[currentStep]?.[item.id]?.quantity || 0;
-                    const canAddMore = currentSelected < currentLimit;
+                    const currentQty = selections[activeStep]?.[item.id]?.quantity || 0;
+                    const canAddMore = currentSelected < currentStep.quantity;
 
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        onClick={() => handleAdjustSelection(item, currentStep, 1)}
-                        className={`p-2 rounded-xl border text-left transition-all min-w-0 ${currentQty > 0
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50'
-                          }`}
-                        disabled={currentQty === 0 && currentLimit > 0 && !canAddMore}
+                        className={`p-3 rounded-xl border text-left transition-all ${
+                          currentQty > 0
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-xl shrink-0">{categoryEmojis[item.category] || '🍽️'}</span>
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.title} className="w-12 h-12 rounded-lg object-cover" />
+                          ) : (
+                            <span className="text-2xl">{getCategoryEmoji(item.category || currentStep.category, '')}</span>
+                          )}
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">{item.title}</p>
                             {item.description && (
-                              <p className="text-xs text-muted-foreground truncate mt-0.5">{item.description}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
+                            )}
+                            {item.isAddon && item.price > 0 && (
+                              <p className="text-xs text-primary font-medium">+£{Number(item.price).toFixed(2)}</p>
                             )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
@@ -609,11 +512,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleAdjustSelection(item, currentStep, -1);
-                              }}
+                              onClick={() => handleAdjustSelection(activeStep, item, -1)}
                               disabled={currentQty <= 0}
                             >
                               <Minus className="h-3 w-3" />
@@ -623,53 +522,57 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleAdjustSelection(item, currentStep, 1);
-                              }}
-                              disabled={currentLimit > 0 && currentSelected >= currentLimit}
+                              onClick={() => handleAdjustSelection(activeStep, item, 1)}
+                              disabled={!canAddMore}
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
               )}
 
-              {/* Upgrade options for sides */}
-              {currentStep === 'side' && showUpgradeOptions && (
+              {/* Upgrade options */}
+              {currentStep.upgradeable && showUpgradePanel && upgradeItems.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-primary mb-2">
                     <ArrowUp className="h-4 w-4" />
-                    <span className="font-medium">Upgrade your side (+£2.00)</span>
+                    <span className="font-medium">Upgrade Options (+£2.00)</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {upgradeItems.map((item) => {
-                      const isSelected = (selection.side?.[item.id]?.quantity || 0) > 0;
+                      const isSelected = (selections[activeStep]?.[item.id]?.quantity || 0) > 0;
+                      const upgradePrice = config.upgrades.find(u => u.from_category === currentStep.category)?.price_diff || 2;
 
                       return (
                         <button
                           key={item.id}
-                          onClick={() => handleUpgrade(item, 2.00)}
-                          className={`p-2 rounded-xl border text-left transition-all ${isSelected
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'
-                            }`}
+                          onClick={() => handleUpgradeSelection(activeStep, item, upgradePrice)}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            isSelected
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          }`}
                         >
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">{categoryEmojis[item.category] || '🍽️'}</span>
+                          <div className="flex items-center gap-2">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.title} className="w-10 h-10 rounded-lg object-cover" />
+                            ) : (
+                              <span className="text-xl">{getCategoryEmoji(item.category || '', '')}</span>
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{item.title}</p>
+                              <p className="text-xs text-primary font-medium">+£{upgradePrice.toFixed(2)}</p>
+                            </div>
                             {isSelected && (
-                              <div className="ml-auto bg-primary text-primary-foreground rounded-full p-1">
+                              <div className="bg-primary text-primary-foreground rounded-full p-1">
                                 <Check className="h-3 w-3" />
                               </div>
                             )}
                           </div>
-                          <p className="font-medium text-sm line-clamp-2">{item.title}</p>
-                          <p className="text-xs text-secondary font-medium mt-1">+£2.00</p>
                         </button>
                       );
                     })}
@@ -677,26 +580,26 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                 </div>
               )}
 
-              {/* Upgrade toggle for sides */}
-              {currentStep === 'side' && !showUpgradeOptions && (
+              {/* Upgrade toggle button */}
+              {currentStep.upgradeable && upgradeItems.length > 0 && !showUpgradePanel && (
                 <Button
                   variant="outline"
                   className="mt-4 w-full"
-                  onClick={() => setShowUpgradeOptions(true)}
+                  onClick={() => setShowUpgradePanel(true)}
                 >
                   <ArrowUp className="h-4 w-4 mr-2" />
                   Want to upgrade? (Wings, Tenders, etc.)
                 </Button>
               )}
 
-              {showUpgradeOptions && (
+              {showUpgradePanel && (
                 <Button
                   variant="ghost"
                   className="mt-4"
-                  onClick={() => setShowUpgradeOptions(false)}
+                  onClick={() => setShowUpgradePanel(false)}
                 >
                   <ChevronLeft className="h-4 w-4 mr-2" />
-                  Back to regular sides
+                  Back to regular options
                 </Button>
               )}
             </div>
@@ -707,25 +610,18 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
         <div className="border-t border-border p-4 space-y-3">
           {/* Selection Summary */}
           <div className="flex flex-wrap gap-2">
-            {Object.values(selection.burger).map((s) => (
-              <Badge key={s.item.id} variant="outline" className="gap-1">
-                🍔 {s.quantity}x {s.item.title}
-              </Badge>
-            ))}
-            {Object.values(selection.side).map((s) => {
-              const upgraded = selection.upgrades.find((u) => u.category === 'side' && u.item?.id === s.item.id);
-              return (
-                <Badge key={s.item.id} variant="outline" className="gap-1">
-                  🍟 {s.quantity}x {s.item.title}
-                  {upgraded && <span className="text-secondary ml-1">+£{(upgraded.priceDiff * upgraded.quantity).toFixed(0)}</span>}
-                </Badge>
-              );
+            {config.steps.map((step, idx) => {
+              const stepSelections = selections[idx] || {};
+              return Object.values(stepSelections).map((s) => {
+                const upgrade = upgradeSelections.find(u => u.stepIndex === idx && u.item?.id === s.item.id);
+                return (
+                  <Badge key={`${idx}-${s.item.id}`} variant="outline" className="gap-1">
+                    {getCategoryEmoji(step.category, step.label)} {s.quantity}x {s.item.title}
+                    {upgrade && <span className="text-primary ml-1">+£{(upgrade.priceDiff * upgrade.quantity).toFixed(0)}</span>}
+                  </Badge>
+                );
+              });
             })}
-            {Object.values(selection.drink).map((s) => (
-              <Badge key={s.item.id} variant="outline" className="gap-1">
-                🥤 {s.quantity}x {s.item.title}
-              </Badge>
-            ))}
           </div>
 
           {/* Quantity */}
@@ -763,7 +659,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
 
             {!isLastStep() ? (
               <>
-                {currentStep !== 'burger' && (
+                {!currentStep.required && (
                   <Button variant="ghost" onClick={handleSkip} className="flex-1">
                     Skip
                   </Button>
