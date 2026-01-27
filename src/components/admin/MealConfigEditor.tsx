@@ -162,7 +162,6 @@ const MealConfigEditor = ({ config, onChange, categories: propCategories }: Meal
                     <SelectValue placeholder="Select a category..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="" disabled>Select a category</SelectItem>
                     {allCategories.length > 0 ? (
                       <>
                         {dbCategories.length > 0 && (
