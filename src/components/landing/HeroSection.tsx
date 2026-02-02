@@ -24,11 +24,10 @@ const HeroSection = () => {
         .eq('is_featured', true)
         .eq('is_available', true)
         .not('image_url', 'is', null)
-        .limit(1)
-        .single();
+        .limit(1);
       
-      if (error) return null;
-      return data;
+      if (error || !data || data.length === 0) return null;
+      return data[0];
     },
   });
 
