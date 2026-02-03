@@ -173,8 +173,6 @@ const WalkInOrders = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!customerName.trim()) { toast.error('Enter customer name'); return; }
-    if (!customerPhone.trim()) { toast.error('Enter phone'); return; }
     if (cart.length === 0) { toast.error('Cart is empty'); return; }
 
     setIsSubmitting(true);
@@ -253,39 +251,41 @@ const WalkInOrders = () => {
       <div className="flex-1 flex gap-3 min-h-0 overflow-hidden">
         {/* Left: Menu Section */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Categories - Horizontal Scroll */}
-          <div className="flex gap-1.5 pb-2 overflow-x-auto scrollbar-hide flex-shrink-0">
+          {/* Search - Above Categories */}
+          <div className="relative mb-3 flex-shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search menu items..."
+              className="input-styled pl-10 h-10 text-sm"
+            />
+          </div>
+
+          {/* Categories - Vertical Scrollable List */}
+          <div className="flex flex-wrap gap-2 pb-3 flex-shrink-0">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${selectedCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
-                  }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedCategory === cat 
+                  ? 'bg-primary text-primary-foreground shadow-md' 
+                  : 'bg-muted hover:bg-muted/80 text-foreground'
+                }`}
               >
                 {cat === 'all' ? '🍽️ All' : `${categoryEmojis[cat] || '🍽️'} ${cat}`}
               </button>
             ))}
           </div>
 
-          {/* Search */}
-          <div className="relative mb-2 flex-shrink-0">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="input-styled pl-8 h-8 text-sm"
-            />
-          </div>
-
-          {/* Menu Grid - Scrollable */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          {/* Menu Grid - Vertical Scroll, 2 Columns */}
+          <div className="flex-1 overflow-y-auto min-h-0 pr-1">
             {isLoading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
-                {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+              <div className="grid grid-cols-2 gap-3">
+                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-2 gap-3">
                 {filteredItems.map((item) => {
                   const inCart = cart.filter((c) => c.id === item.id).reduce((sum, c) => sum + c.quantity, 0);
                   return (
@@ -300,16 +300,16 @@ const WalkInOrders = () => {
                           setIsItemModalOpen(true);
                         }
                       }}
-                      className="card-elevated p-2 text-left hover:border-primary/50 transition-all relative active:scale-95"
+                      className="card-elevated p-4 text-left hover:border-primary/50 transition-all relative active:scale-[0.98] rounded-xl"
                     >
                       {inCart > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">{inCart}</span>
+                        <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-md">{inCart}</span>
                       )}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-lg">{categoryEmojis[item.category] || '🍽️'}</span>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{categoryEmojis[item.category] || '🍽️'}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate text-xs">{item.title}</p>
-                          <p className="text-secondary font-bold text-xs">£{Number(item.price).toFixed(2)}</p>
+                          <p className="font-semibold text-sm leading-tight mb-1">{item.title}</p>
+                          <p className="text-secondary font-bold text-base">£{Number(item.price).toFixed(2)}</p>
                         </div>
                       </div>
                     </button>
@@ -365,18 +365,18 @@ const WalkInOrders = () => {
           <div className="space-y-1.5 mb-2 pb-2 border-b border-border flex-shrink-0">
             <div className="grid grid-cols-2 gap-1.5">
               <div>
-                <Label className="text-[10px]">Name *</Label>
+                <Label className="text-[10px] text-muted-foreground">Name (optional)</Label>
                 <Input 
                   value={customerName} 
                   onChange={(e) => setCustomerName(e.target.value)} 
-                  placeholder="Name" 
+                  placeholder="Customer name" 
                   className="input-styled h-7 text-xs"
                   autoComplete="off"
                   onFocus={(e) => e.target.select()}
                 />
               </div>
               <div>
-                <Label className="text-[10px]">Phone *</Label>
+                <Label className="text-[10px] text-muted-foreground">Phone (optional)</Label>
                 <Input 
                   value={customerPhone} 
                   onChange={(e) => setCustomerPhone(e.target.value)} 
