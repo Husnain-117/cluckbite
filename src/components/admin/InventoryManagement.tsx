@@ -137,7 +137,7 @@ const InventoryManagement = () => {
         is_featured: data.is_featured,
         preparation_time: parseInt(data.preparation_time) || 15,
         allergens: data.allergens,
-        meal_config: data.category === 'Meals' ? (data.meal_config || defaultMealConfig) : null,
+        meal_config: data.category?.toLowerCase().includes('meal') ? (data.meal_config || defaultMealConfig) : null,
         image_url: data.image_url,
       });
       if (error) throw error;
@@ -169,7 +169,7 @@ const InventoryManagement = () => {
           is_featured: data.is_featured,
           preparation_time: parseInt(data.preparation_time) || 15,
           allergens: data.allergens,
-          meal_config: data.category === 'Meals' ? data.meal_config : null,
+          meal_config: data.category?.toLowerCase().includes('meal') ? data.meal_config : null,
           image_url: data.image_url,
         })
         .eq('id', selectedItem.id);
@@ -671,8 +671,8 @@ const InventoryManagement = () => {
               </div>
             </div>
 
-            {/* Meal Configuration - only show for Meals category */}
-            {formData.category === 'Meals' && (
+            {/* Meal Configuration - only show for Meal Deals category */}
+            {formData.category?.toLowerCase().includes('meal') && (
               <>
                 <Separator />
                 <div className="space-y-2">
