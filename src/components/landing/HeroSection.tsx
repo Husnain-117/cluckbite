@@ -58,9 +58,9 @@ const HeroSection = () => {
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading font-bold mb-6 leading-tight tracking-tight">
-              Crispy Chicken,
+              Crispy Juicy
               <br />
-              <span className="text-primary">Delivered Fresh</span>
+              <span className="text-primary">Unforgettable</span>
             </h1>
 
             <p className="text-lg text-muted-foreground mb-8 max-w-lg mx-auto lg:mx-0 leading-relaxed">

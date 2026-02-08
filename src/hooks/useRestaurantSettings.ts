@@ -113,10 +113,30 @@ export const getDeliveryCharge = (miles: number): number => {
 
 export const getDistanceFromPostcode = (postcode: string): { distance: number | null; outwardCode: string | null } => {
   const cleanPostcode = postcode.toUpperCase().replace(/\s/g, '');
-  // Match UK outward code: 1-2 letters + 1-2 digits (e.g., CF5, CF10, NP20)
-  const outwardMatch = cleanPostcode.match(/^([A-Z]{1,2}\d{1,2})/);
-  if (!outwardMatch) return { distance: null, outwardCode: null };
-  const outwardCode = outwardMatch[1];
+  
+  // Try to extract outward code - UK postcodes like CF5 5AS become CF55AS without space
+  // We need to try both 2-digit (CF10) and 1-digit (CF5) matches and pick the one in our table
+  const match2 = cleanPostcode.match(/^([A-Z]{1,2}\d{2})/); // e.g., CF10, NP20
+  const match1 = cleanPostcode.match(/^([A-Z]{1,2}\d)/);    // e.g., CF5, NP1
+  
+  let outwardCode: string | null = null;
+  
+  // First check if 2-digit match exists in our lookup table
+  if (match2 && cardiffPostcodeDistances[match2[1]] !== undefined) {
+    outwardCode = match2[1];
+  } 
+  // Then try 1-digit match
+  else if (match1 && cardiffPostcodeDistances[match1[1]] !== undefined) {
+    outwardCode = match1[1];
+  }
+  // If neither found in table, use whichever matched (will return null distance)
+  else if (match2) {
+    outwardCode = match2[1];
+  } else if (match1) {
+    outwardCode = match1[1];
+  }
+  
+  if (!outwardCode) return { distance: null, outwardCode: null };
   const distance = cardiffPostcodeDistances[outwardCode] ?? null;
   return { distance, outwardCode };
 };

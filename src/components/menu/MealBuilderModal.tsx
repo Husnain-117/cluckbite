@@ -478,7 +478,7 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
             <div className="flex-1 overflow-y-auto pr-2 pb-24">
               {/* Regular items */}
               {!showUpgradePanel && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {currentItems.map((item) => {
                     const currentQty = selections[activeStep]?.[item.id]?.quantity || 0;
                     const canAddMore = currentSelected < currentStep.quantity;
@@ -492,16 +492,16 @@ const MealBuilderModal = ({ meal, isOpen, onClose, onAddToCart }: MealBuilderMod
                             : 'border-border hover:border-primary/50'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           {item.image_url ? (
-                            <img src={item.image_url} alt={item.title} className="w-12 h-12 rounded-lg object-cover" />
+                            <img src={item.image_url} alt={item.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
                           ) : (
-                            <span className="text-2xl">{getCategoryEmoji(item.category || currentStep.category, '')}</span>
+                            <span className="text-2xl flex-shrink-0">{getCategoryEmoji(item.category || currentStep.category, '')}</span>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{item.title}</p>
+                            <p className="font-medium text-sm leading-snug">{item.title}</p>
                             {item.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{item.description}</p>
                             )}
                             {item.isAddon && item.price > 0 && (
                               <p className="text-xs text-primary font-medium">+£{Number(item.price).toFixed(2)}</p>

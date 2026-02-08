@@ -84,11 +84,22 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
 
   const getDistanceFromPostcode = (postcode: string): number | null => {
     const cleanPostcode = postcode.toUpperCase().replace(/\s/g, '');
-    // Extract the outward code (first part of UK postcode)
-    const outwardMatch = cleanPostcode.match(/^([A-Z]{1,2}\d{1,2})/);
-    if (!outwardMatch) return null;
+    // Try both 2-digit (CF10) and 1-digit (CF5) outward code matches
+    const match2 = cleanPostcode.match(/^([A-Z]{1,2}\d{2})/);
+    const match1 = cleanPostcode.match(/^([A-Z]{1,2}\d)/);
     
-    const outwardCode = outwardMatch[1];
+    let outwardCode: string | null = null;
+    if (match2 && cardiffPostcodeDistances[match2[1]] !== undefined) {
+      outwardCode = match2[1];
+    } else if (match1 && cardiffPostcodeDistances[match1[1]] !== undefined) {
+      outwardCode = match1[1];
+    } else if (match2) {
+      outwardCode = match2[1];
+    } else if (match1) {
+      outwardCode = match1[1];
+    }
+    
+    if (!outwardCode) return null;
     return cardiffPostcodeDistances[outwardCode] || null;
   };
 

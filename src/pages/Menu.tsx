@@ -49,11 +49,26 @@ const Menu = () => {
     },
   });
 
+  // Fetch categories from DB to sync with admin panel
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['active-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('name')
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw error;
+      return data.map(c => c.name);
+    },
+  });
+
   const categories = useMemo(() => {
+    if (dbCategories.length > 0) return ['all', ...dbCategories];
     if (!menuItems) return [];
     const cats = [...new Set(menuItems.map(item => item.category))];
     return ['all', ...cats];
-  }, [menuItems]);
+  }, [menuItems, dbCategories]);
 
   const filteredItems = useMemo(() => {
     if (!menuItems) return [];

@@ -102,6 +102,20 @@ const PhoneOrders = () => {
     },
   });
 
+  // Fetch categories from DB to sync with admin panel
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ['active-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('name')
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw error;
+      return data.map(c => c.name);
+    },
+  });
+
   // Customer lookup
   const lookupCustomer = async (phone: string) => {
     if (phone.length < 10) return;
@@ -184,7 +198,10 @@ const PhoneOrders = () => {
     toast.success(`Delivery: £${getDeliveryCharge(result.distance!).toFixed(2)} (${result.distance} miles)`);
   };
 
-  const categories = useMemo(() => ['all', ...new Set(menuItems.map((item) => item.category))], [menuItems]);
+  const categories = useMemo(() => {
+    if (dbCategories.length > 0) return ['all', ...dbCategories];
+    return ['all', ...new Set(menuItems.map((item) => item.category))];
+  }, [menuItems, dbCategories]);
 
   const filteredItems = useMemo(() => {
     let filtered = menuItems;
