@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, Plus, Minus, Trash2, ArrowRight, Truck, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
+import CouponInput from '@/components/cart/CouponInput';
 
 const Cart = () => {
-  const { items, updateQuantity, removeItem, subtotal, deliveryCharges, total, deliveryInfo, itemCount } = useCart();
+  const { items, updateQuantity, removeItem, subtotal, deliveryCharges, total, deliveryInfo, itemCount, discount, appliedCoupon } = useCart();
 
   if (items.length === 0) {
     return (
@@ -121,6 +122,11 @@ const Cart = () => {
           </Button>
         </Link>
 
+        {/* Coupon Code */}
+        <div className="card-elevated p-6 mb-6">
+          <CouponInput />
+        </div>
+
         {/* Order Summary */}
         <div className="card-elevated p-6 space-y-4">
           <h3 className="font-heading font-semibold">Order Summary</h3>
@@ -134,6 +140,12 @@ const Cart = () => {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Delivery Charges</span>
                 <span>£{deliveryCharges.toFixed(2)}</span>
+              </div>
+            )}
+            {discount > 0 && appliedCoupon && (
+              <div className="flex justify-between text-primary">
+                <span>Discount ({appliedCoupon.coupon_code})</span>
+                <span>-£{discount.toFixed(2)}</span>
               </div>
             )}
             <div className="border-t border-border pt-3 flex justify-between">
