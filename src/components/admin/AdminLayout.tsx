@@ -14,6 +14,7 @@ import {
   FolderOpen,
   Tag,
   PlusCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -33,6 +34,7 @@ const sidebarItems = [
   { id: 'addons', label: 'Add-ons', icon: PlusCircle },
   { id: 'categories', label: 'Categories', icon: FolderOpen },
   { id: 'offers', label: 'Offers', icon: Tag },
+  { id: 'reviews', label: 'Reviews', icon: MessageSquare },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'users', label: 'Users', icon: Users },

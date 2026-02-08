@@ -601,6 +601,36 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          created_at: string
+          customer_name: string
+          id: string
+          is_approved: boolean
+          rating: number
+          review_text: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          id?: string
+          is_approved?: boolean
+          rating: number
+          review_text: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          id?: string
+          is_approved?: boolean
+          rating?: number
+          review_text?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           created_at: string
