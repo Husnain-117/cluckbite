@@ -20,6 +20,8 @@ import MealBuilderModal, { MealSelection } from '@/components/menu/MealBuilderMo
 import RestaurantStatusBanner from '@/components/RestaurantStatusBanner';
 import { useRestaurantSettings, generateDailyOrderNumber } from '@/hooks/useRestaurantSettings';
 import { Switch } from '@/components/ui/switch';
+import ManagerCouponInput from '@/components/cart/ManagerCouponInput';
+import type { AppliedCoupon } from '@/hooks/useCoupon';
 
 interface CartItem {
   id: string;
@@ -53,6 +55,8 @@ const WalkInOrders = () => {
   // Discount
   const [discount, setDiscount] = useState('');
   const [isPercentageDiscount, setIsPercentageDiscount] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -123,10 +127,11 @@ const WalkInOrders = () => {
   // Cart calculations
   const subtotal = cart.reduce((sum, item) => (item.price + (item.addonsTotal || 0)) * item.quantity + sum, 0);
 
-  // Calculate discount (supports both percentage and fixed)
+  // Calculate discount (supports both percentage, fixed, and coupon)
   const discountValue = parseFloat(discount) || 0;
-  const discountAmount = isPercentageDiscount ? (subtotal * discountValue / 100) : discountValue;
-  const total = Math.max(0, subtotal - discountAmount);
+  const manualDiscountAmount = isPercentageDiscount ? (subtotal * discountValue / 100) : discountValue;
+  const totalDiscount = manualDiscountAmount + couponDiscount;
+  const total = Math.max(0, subtotal - totalDiscount);
 
   const changeToReturn = paymentMethod === 'cash' && amountReceived ? parseFloat(amountReceived) - total : 0;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -185,6 +190,8 @@ const WalkInOrders = () => {
     setSplitCashAmount('');
     setDiscount('');
     setIsPercentageDiscount(false);
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
   };
 
   const handlePlaceOrder = async () => {
@@ -249,7 +256,7 @@ const WalkInOrders = () => {
     if (!completedOrder) return;
     const w = window.open('', '_blank');
     if (w) {
-      w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;padding:20px;max-width:300px;margin:0 auto}h1{text-align:center;font-size:20px}.header{text-align:center;margin-bottom:15px}.divider{border-top:1px dashed #000;margin:8px 0}.item{display:flex;justify-content:space-between;margin:3px 0}.total{font-weight:bold}</style></head><body><div class="header"><h1>Cluck Bite</h1><p>Walk-In Order</p></div><div class="divider"></div><p><b>Order:</b> ${completedOrder.order_number}</p><p><b>Date:</b> ${format(new Date(), 'PPpp')}</p><p><b>Customer:</b> ${customerName}</p><div class="divider"></div>${cart.map(item => `<div class="item"><span>${item.quantity}x ${item.title}</span><span>£${((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}</span></div>${item.addons?.map(a => `<div style="font-size:0.8em;margin-left:10px;color:#666">+ ${a.name} x${a.quantity}</div>`).join('') || ''}`).join('')}<div class="divider"></div>${discountAmount > 0 ? `<div class="item"><span>Discount${isPercentageDiscount ? ` (${discountValue}%)` : ''}</span><span>-£${discountAmount.toFixed(2)}</span></div>` : ''}<div class="item total"><span>Total</span><span>£${total.toFixed(2)}</span></div><div class="divider"></div><p style="text-align:center">Payment: ${paymentMethod.toUpperCase()}</p>${changeToReturn > 0 ? `<p style="text-align:center">Change: £${changeToReturn.toFixed(2)}</p>` : ''}<div class="divider"></div><p style="text-align:center;margin-top:20px">Thank you!</p></body></html>`);
+      w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;padding:20px;max-width:300px;margin:0 auto}h1{text-align:center;font-size:20px}.header{text-align:center;margin-bottom:15px}.divider{border-top:1px dashed #000;margin:8px 0}.item{display:flex;justify-content:space-between;margin:3px 0}.total{font-weight:bold}</style></head><body><div class="header"><h1>Cluck Bite</h1><p>Walk-In Order</p></div><div class="divider"></div><p><b>Order:</b> ${completedOrder.order_number}</p><p><b>Date:</b> ${format(new Date(), 'PPpp')}</p><p><b>Customer:</b> ${customerName}</p><div class="divider"></div>${cart.map(item => `<div class="item"><span>${item.quantity}x ${item.title}</span><span>£${((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2)}</span></div>${item.addons?.map(a => `<div style="font-size:0.8em;margin-left:10px;color:#666">+ ${a.name} x${a.quantity}</div>`).join('') || ''}`).join('')}<div class="divider"></div>${totalDiscount > 0 ? `<div class="item"><span>Discount${appliedCoupon ? ` (${appliedCoupon.coupon_code})` : isPercentageDiscount ? ` (${discountValue}%)` : ''}</span><span>-£${totalDiscount.toFixed(2)}</span></div>` : ''}<div class="item total"><span>Total</span><span>£${total.toFixed(2)}</span></div><div class="divider"></div><p style="text-align:center">Payment: ${paymentMethod.toUpperCase()}</p>${changeToReturn > 0 ? `<p style="text-align:center">Change: £${changeToReturn.toFixed(2)}</p>` : ''}<div class="divider"></div><p style="text-align:center;margin-top:20px">Thank you!</p></body></html>`);
       w.document.close();
       w.print();
     }
@@ -486,16 +493,33 @@ const WalkInOrders = () => {
             </div>
           </div>
 
+          {/* Coupon Code */}
+          <div className="mb-2 flex-shrink-0">
+            <ManagerCouponInput
+              subtotal={subtotal}
+              appliedCoupon={appliedCoupon}
+              onApply={(coupon, discount) => { setAppliedCoupon(coupon); setCouponDiscount(discount); }}
+              onRemove={() => { setAppliedCoupon(null); setCouponDiscount(0); }}
+              compact
+            />
+          </div>
+
           {/* Summary */}
           <div className="border-t border-border pt-2 space-y-1 flex-shrink-0">
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Subtotal</span>
               <span>£{subtotal.toFixed(2)}</span>
             </div>
-            {discountAmount > 0 && (
+            {manualDiscountAmount > 0 && (
               <div className="flex justify-between text-xs text-green-500">
                 <span>Discount{isPercentageDiscount ? ` (${discountValue}%)` : ''}</span>
-                <span>-£{discountAmount.toFixed(2)}</span>
+                <span>-£{manualDiscountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            {couponDiscount > 0 && appliedCoupon && (
+              <div className="flex justify-between text-xs text-primary">
+                <span>Coupon ({appliedCoupon.coupon_code})</span>
+                <span>-£{couponDiscount.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between font-heading font-bold">

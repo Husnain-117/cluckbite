@@ -25,6 +25,8 @@ import ItemDetailsModal, { SelectedAddon } from '@/components/menu/ItemDetailsMo
 import MealBuilderModal, { MealSelection } from '@/components/menu/MealBuilderModal';
 import { Badge } from '@/components/ui/badge';
 import RestaurantStatusBanner from '@/components/RestaurantStatusBanner';
+import ManagerCouponInput from '@/components/cart/ManagerCouponInput';
+import type { AppliedCoupon } from '@/hooks/useCoupon';
 import {
   useRestaurantSettings,
   getDeliveryCharge,
@@ -74,6 +76,9 @@ const PhoneOrders = () => {
   const [splitCardAmount, setSplitCardAmount] = useState('');
   const [splitCashAmount, setSplitCashAmount] = useState('');
 
+  // Coupon discount
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -220,7 +225,7 @@ const PhoneOrders = () => {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price + (item.addonsTotal || 0)) * item.quantity, 0);
-  const total = subtotal + deliveryCharges;
+  const total = Math.max(0, subtotal + deliveryCharges - couponDiscount);
 
   const cardAmount = paymentMethod === 'card' ? total : paymentMethod === 'split' ? (parseFloat(splitCardAmount) || 0) : 0;
   const cashAmount = paymentMethod === 'cash' ? total : paymentMethod === 'split' ? (parseFloat(splitCashAmount) || 0) : 0;
@@ -286,6 +291,8 @@ const PhoneOrders = () => {
     setCustomerHistory([]);
     setFoundCustomer(null);
     setShowHistory(false);
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
   };
 
   const handlePlaceOrder = async () => {
@@ -642,6 +649,17 @@ const PhoneOrders = () => {
             </div>
           </div>
 
+          {/* Coupon Code */}
+          <div className="mt-2">
+            <ManagerCouponInput
+              subtotal={subtotal}
+              appliedCoupon={appliedCoupon}
+              onApply={(coupon, discount) => { setAppliedCoupon(coupon); setCouponDiscount(discount); }}
+              onRemove={() => { setAppliedCoupon(null); setCouponDiscount(0); }}
+              compact
+            />
+          </div>
+
           {/* Summary - Fixed at bottom */}
           <div className="border-t border-border pt-2 mt-2 space-y-1 flex-shrink-0">
             <div className="flex justify-between text-[10px]">
@@ -652,6 +670,12 @@ const PhoneOrders = () => {
               <span className="text-muted-foreground">Delivery ({distance || 0} mi)</span>
               <span>£{deliveryCharges.toFixed(2)}</span>
             </div>
+            {couponDiscount > 0 && appliedCoupon && (
+              <div className="flex justify-between text-[10px] text-primary">
+                <span>Coupon ({appliedCoupon.coupon_code})</span>
+                <span>-£{couponDiscount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-heading font-bold">
               <span>Total</span>
               <span className="text-primary">£{total.toFixed(2)}</span>
