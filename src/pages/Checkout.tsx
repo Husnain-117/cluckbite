@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import CouponInput from '@/components/cart/CouponInput';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -299,6 +300,11 @@ const Checkout = () => {
                   </p>
                 </div>
               ))}
+            </div>
+
+            {/* Coupon Code */}
+            <div className="card-elevated p-4">
+              <CouponInput />
             </div>
 
             {/* Summary */}
