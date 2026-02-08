@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Upload,
   Download,
+  ImageOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -195,6 +196,35 @@ const InventoryManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-menu-items'] });
       toast.success('Item deleted successfully!');
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    },
+  });
+
+  const removeImageMutation = useMutation({
+    mutationFn: async (item: any) => {
+      // Delete from storage
+      if (item.image_url) {
+        try {
+          const urlParts = item.image_url.split('/images/');
+          if (urlParts.length > 1) {
+            await supabase.storage.from('images').remove([urlParts[1]]);
+          }
+        } catch (e) {
+          console.error('Failed to delete image from storage:', e);
+        }
+      }
+      // Clear image_url in DB
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ image_url: null })
+        .eq('id', item.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-menu-items'] });
+      toast.success('Image removed successfully!');
     },
     onError: (error: any) => {
       toast.error(error.message);
@@ -427,7 +457,22 @@ const InventoryManagement = () => {
               <div key={item.id} className="card-elevated overflow-hidden group">
                 <div className="relative h-32 bg-gradient-to-br from-muted to-background flex items-center justify-center overflow-hidden">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                    <>
+                      <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 left-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Remove this image?')) {
+                            removeImageMutation.mutate(item);
+                          }
+                        }}
+                      >
+                        <ImageOff className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
                   ) : (
                     <span className="text-5xl">{categoryEmojis[item.category] || '🍽️'}</span>
                   )}

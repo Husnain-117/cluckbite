@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, ArrowUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -72,12 +72,24 @@ const MealConfigEditor = ({ config, onChange, categories: propCategories }: Meal
     },
   });
 
-  // Combine menu categories and addon categories
+  // Combine menu categories and addon categories for component selection
   const allCategories = React.useMemo(() => {
     const menuCats = dbCategories.map(c => ({ id: c.id, name: c.name, type: 'menu' as const }));
     const addonCats = addonCategories.map(c => ({ id: c.id, name: c.name, type: 'addon' as const }));
     return [...menuCats, ...addonCats];
   }, [dbCategories, addonCategories]);
+
+  // Get categories that are used as components (for "From Category" in upgrades)
+  const componentCategories = React.useMemo(() => {
+    return config.components
+      .filter(c => c.category && c.upgradeable)
+      .map(c => c.category);
+  }, [config.components]);
+
+  // Get categories available as upgrade targets (all categories except "Meals" itself)
+  const upgradeTargetCategories = React.useMemo(() => {
+    return allCategories.filter(c => c.name.toLowerCase() !== 'meals');
+  }, [allCategories]);
 
   const addComponent = () => {
     onChange({
@@ -96,8 +108,11 @@ const MealConfigEditor = ({ config, onChange, categories: propCategories }: Meal
   };
 
   const removeComponent = (index: number) => {
+    const removedCategory = config.components[index]?.category;
     const newComponents = config.components.filter((_, i) => i !== index);
-    onChange({ ...config, components: newComponents });
+    // Also clean up any upgrades referencing this component
+    const newUpgrades = config.upgrades.filter(u => u.from_category !== removedCategory);
+    onChange({ ...config, components: newComponents, upgrades: newUpgrades });
   };
 
   const addUpgrade = () => {
@@ -131,6 +146,7 @@ const MealConfigEditor = ({ config, onChange, categories: propCategories }: Meal
 
   return (
     <div className="space-y-6 p-4 bg-muted/50 rounded-xl">
+      {/* Components Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <Label className="text-base font-semibold">Meal Components</Label>
@@ -151,11 +167,9 @@ const MealConfigEditor = ({ config, onChange, categories: propCategories }: Meal
                 <Select
                   value={component.category}
                   onValueChange={(value) => {
-                    updateComponent(index, { category: value });
-                    // Auto-fill label if empty
-                    if (!component.label) {
-                      updateComponent(index, { category: value, label: value });
-                    }
+                    const updates: Partial<MealComponent> = { category: value };
+                    if (!component.label) updates.label = value;
+                    updateComponent(index, updates);
                   }}
                 >
                   <SelectTrigger className="mt-1">
@@ -249,38 +263,61 @@ const MealConfigEditor = ({ config, onChange, categories: propCategories }: Meal
 
       <Separator />
 
+      {/* Upgrades Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <ArrowUp className="h-4 w-4 text-primary" />
             <Label className="text-base font-semibold">Upgrade Options</Label>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addUpgrade}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addUpgrade}
+            disabled={componentCategories.length === 0}
+          >
             <Plus className="h-4 w-4 mr-1" />
             Add Upgrade
           </Button>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Allow customers to upgrade items (e.g., Fries → Wings for extra £2)
+          Allow customers to upgrade items (e.g., Sides → Wings for extra £2). 
+          {componentCategories.length === 0 && (
+            <span className="text-yellow-500 block mt-1">
+              ⚠️ Mark at least one component as "Upgradeable" to create upgrade options.
+            </span>
+          )}
         </p>
         
         <div className="space-y-3">
           {config.upgrades.map((upgrade, index) => (
-            <div key={index} className="p-3 bg-background rounded-lg border border-border space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="w-40">
-                  <Label className="text-xs text-muted-foreground">From Category</Label>
+            <div key={index} className="p-4 bg-background rounded-lg border border-border space-y-4">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="w-48">
+                  <Label className="text-xs text-muted-foreground">From (Upgradeable Component)</Label>
                   <Select
                     value={upgrade.from_category}
-                    onValueChange={(v) => updateUpgrade(index, { from_category: v })}
+                    onValueChange={(v) => {
+                      // Auto-fill label when selecting
+                      const autoLabel = `Upgrade from ${v}`;
+                      updateUpgrade(index, { 
+                        from_category: v, 
+                        label: upgrade.label === 'Upgrade' ? autoLabel : upgrade.label 
+                      });
+                    }}
                   >
                     <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select..." />
+                      <SelectValue placeholder="Select component..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {allCategories.map(cat => (
-                        <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                      ))}
+                      {componentCategories.length > 0 ? (
+                        componentCategories.map(catName => (
+                          <SelectItem key={catName} value={catName}>{catName}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>No upgradeable components</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -312,26 +349,40 @@ const MealConfigEditor = ({ config, onChange, categories: propCategories }: Meal
                   variant="ghost"
                   size="icon"
                   onClick={() => removeUpgrade(index)}
-                  className="text-destructive hover:text-destructive self-end"
+                  className="text-destructive hover:text-destructive mt-5"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
               
               <div>
-                <Label className="text-xs text-muted-foreground mb-2 block">Upgrade To (select categories):</Label>
+                <Label className="text-xs text-muted-foreground mb-2 block">
+                  Upgrade To (select target categories):
+                </Label>
                 <div className="flex flex-wrap gap-2">
-                  {allCategories.filter(c => c.name !== upgrade.from_category).map(cat => (
-                    <Badge
-                      key={cat.id}
-                      variant={upgrade.to_categories.includes(cat.name) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => toggleToCategory(index, cat.name)}
-                    >
-                      {cat.name}
-                    </Badge>
-                  ))}
+                  {upgradeTargetCategories
+                    .filter(c => c.name !== upgrade.from_category)
+                    .map(cat => (
+                      <Badge
+                        key={cat.id}
+                        variant={upgrade.to_categories.includes(cat.name) ? 'default' : 'outline'}
+                        className="cursor-pointer select-none transition-colors"
+                        onClick={() => toggleToCategory(index, cat.name)}
+                      >
+                        {cat.name}
+                        {cat.type === 'addon' && <span className="ml-1 opacity-60 text-[10px]">(addon)</span>}
+                      </Badge>
+                    ))}
+                  {upgradeTargetCategories.filter(c => c.name !== upgrade.from_category).length === 0 && (
+                    <span className="text-xs text-muted-foreground">No target categories available</span>
+                  )}
                 </div>
+                {upgrade.to_categories.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    ✅ Customer can upgrade <strong>{upgrade.from_category || '...'}</strong> to{' '}
+                    <strong>{upgrade.to_categories.join(', ')}</strong> for +£{upgrade.price_diff.toFixed(2)}
+                  </p>
+                )}
               </div>
             </div>
           ))}
