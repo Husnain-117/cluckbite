@@ -23,7 +23,7 @@ type PaymentMethod = 'card' | 'cod' | 'split';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, deliveryInfo, subtotal, deliveryCharges, total, clearCart } = useCart();
+  const { items, deliveryInfo, subtotal, deliveryCharges, total, clearCart, discount, appliedCoupon } = useCart();
   const { user } = useAuth();
 
   const [step, setStep] = useState(1);
@@ -303,7 +303,7 @@ const Checkout = () => {
 
             {/* Summary */}
             <div className="card-elevated p-6 space-y-3">
-              <div className="flex justify-between">
+            <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>£{subtotal.toFixed(2)}</span>
               </div>
@@ -311,6 +311,12 @@ const Checkout = () => {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery Charges</span>
                   <span>£{deliveryCharges.toFixed(2)}</span>
+                </div>
+              )}
+              {discount > 0 && appliedCoupon && (
+                <div className="flex justify-between text-primary">
+                  <span>Discount ({appliedCoupon.coupon_code})</span>
+                  <span>-£{discount.toFixed(2)}</span>
                 </div>
               )}
               <div className="border-t border-border pt-3 flex justify-between">
@@ -514,6 +520,12 @@ const Checkout = () => {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery</span>
                   <span>£{deliveryCharges.toFixed(2)}</span>
+                </div>
+              )}
+              {discount > 0 && appliedCoupon && (
+                <div className="flex justify-between text-primary">
+                  <span>Discount ({appliedCoupon.coupon_code})</span>
+                  <span>-£{discount.toFixed(2)}</span>
                 </div>
               )}
               <div className="border-t border-border pt-3 flex justify-between">
