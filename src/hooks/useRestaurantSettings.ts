@@ -47,63 +47,92 @@ export interface DailyOrderCounter {
   counter: number;
 }
 
-// Comprehensive UK postcodes with ROAD distance from Cardiff Ely (1 Cowbridge Road West, 51.4835°N 3.2326°W) in MILES
-export const cardiffPostcodeDistances: Record<string, number> = {
-  // Cardiff City postcodes
-  'CF5': 0.5,   // Ely, Caerau, Fairwater - restaurant is here
-  'CF11': 2,    // Canton, Riverside
-  'CF10': 3,    // City Centre
-  'CF14': 4,    // Llandaff, Whitchurch
-  'CF24': 4,    // Roath, Adamsdown
-  'CF23': 5,    // Penylan, Cyncoed
-  'CF3': 6,     // Rumney, Llanrumney
-  'CF15': 5,    // Radyr, Tongwynlais
-  'CF4': 5,     // Creigiau
-  // Vale of Glamorgan
-  'CF64': 5,    // Penarth
-  'CF62': 10,   // Barry
-  'CF63': 10,   // Barry
-  'CF61': 15,   // Llantwit Major
-  'CF71': 12,   // Cowbridge
-  // Caerphilly
-  'CF83': 9,    // Caerphilly
-  'CF82': 13,   // Ystrad Mynach
-  'CF81': 17,   // Bargoed
-  // Rhondda Cynon Taf
-  'CF37': 12,   // Pontypridd
-  'CF38': 9,    // Church Village
-  'CF72': 8,    // Llantrisant
-  'CF35': 16,   // Pencoed area
-  // Bridgend
-  'CF31': 20,   // Bridgend
-  'CF32': 18,   // Tondu
-  'CF33': 21,   // Pyle
-  'CF34': 20,   // Maesteg
-  'CF36': 22,   // Porthcawl
-  // Rhondda
-  'CF39': 15,   // Porth
-  'CF40': 16,   // Tonypandy
-  'CF41': 17,   // Pentre
-  'CF42': 19,   // Treorchy
-  'CF43': 16,   // Ferndale
-  'CF44': 20,   // Aberdare
-  'CF45': 15,   // Mountain Ash
-  'CF46': 14,   // Treharris
-  'CF47': 22,   // Merthyr Tydfil
-  'CF48': 23,   // Merthyr Tydfil
-  // Newport
-  'NP10': 12,   // Rogerstone
-  'NP19': 15,   // Newport
-  'NP20': 15,   // Newport
-  'NP18': 14,   // Caerleon
-  'NP44': 18,   // Cwmbran
-  'NP26': 25,   // Caldicot
-  // Extra Cardiff areas
-  'CF1': 3,     // Central
-  'CF2': 4,     // Heath
-  'CF6': 10,    // Vale of Glamorgan
-  'CF7': 8,     // Pontyclun area
+// Restaurant GPS coordinates (51°29'00.6"N 3°13'57.4"W)
+const RESTAURANT_LAT = 51.483494;
+const RESTAURANT_LNG = -3.232614;
+const ROAD_FACTOR = 1.4; // Multiplier: straight-line → approximate road distance
+
+// Haversine formula: returns distance in miles between two GPS points
+const haversineDistanceMiles = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 3958.8; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
+
+// Postcode outward code centroids (approximate GPS center of each area)
+const cardiffPostcodeCentroids: Record<string, { lat: number; lng: number }> = {
+  // Cardiff City postcodes
+  'CF5':  { lat: 51.487, lng: -3.238 },  // Ely, Caerau, Fairwater
+  'CF11': { lat: 51.474, lng: -3.194 },  // Canton, Riverside
+  'CF10': { lat: 51.478, lng: -3.175 },  // City Centre
+  'CF14': { lat: 51.502, lng: -3.213 },  // Llandaff, Whitchurch
+  'CF24': { lat: 51.485, lng: -3.165 },  // Roath, Adamsdown
+  'CF23': { lat: 51.510, lng: -3.150 },  // Penylan, Cyncoed
+  'CF3':  { lat: 51.500, lng: -3.120 },  // Rumney, Llanrumney
+  'CF15': { lat: 51.520, lng: -3.260 },  // Radyr, Tongwynlais
+  'CF4':  { lat: 51.515, lng: -3.285 },  // Creigiau
+  // Vale of Glamorgan
+  'CF64': { lat: 51.438, lng: -3.175 },  // Penarth
+  'CF62': { lat: 51.400, lng: -3.270 },  // Barry
+  'CF63': { lat: 51.405, lng: -3.250 },  // Barry
+  'CF61': { lat: 51.405, lng: -3.485 },  // Llantwit Major
+  'CF71': { lat: 51.462, lng: -3.450 },  // Cowbridge
+  // Caerphilly
+  'CF83': { lat: 51.575, lng: -3.220 },  // Caerphilly
+  'CF82': { lat: 51.640, lng: -3.235 },  // Ystrad Mynach
+  'CF81': { lat: 51.690, lng: -3.230 },  // Bargoed
+  // Rhondda Cynon Taf
+  'CF37': { lat: 51.600, lng: -3.340 },  // Pontypridd
+  'CF38': { lat: 51.555, lng: -3.290 },  // Church Village
+  'CF72': { lat: 51.520, lng: -3.340 },  // Llantrisant
+  'CF35': { lat: 51.525, lng: -3.560 },  // Pencoed area
+  // Bridgend
+  'CF31': { lat: 51.510, lng: -3.580 },  // Bridgend
+  'CF32': { lat: 51.545, lng: -3.580 },  // Tondu
+  'CF33': { lat: 51.525, lng: -3.680 },  // Pyle
+  'CF34': { lat: 51.610, lng: -3.660 },  // Maesteg
+  'CF36': { lat: 51.490, lng: -3.700 },  // Porthcawl
+  // Rhondda
+  'CF39': { lat: 51.615, lng: -3.410 },  // Porth
+  'CF40': { lat: 51.630, lng: -3.440 },  // Tonypandy
+  'CF41': { lat: 51.645, lng: -3.465 },  // Pentre
+  'CF42': { lat: 51.665, lng: -3.510 },  // Treorchy
+  'CF43': { lat: 51.640, lng: -3.440 },  // Ferndale
+  'CF44': { lat: 51.710, lng: -3.445 },  // Aberdare
+  'CF45': { lat: 51.670, lng: -3.370 },  // Mountain Ash
+  'CF46': { lat: 51.660, lng: -3.320 },  // Treharris
+  'CF47': { lat: 51.750, lng: -3.380 },  // Merthyr Tydfil
+  'CF48': { lat: 51.760, lng: -3.380 },  // Merthyr Tydfil
+  // Newport
+  'NP10': { lat: 51.580, lng: -3.060 },  // Rogerstone
+  'NP19': { lat: 51.570, lng: -3.010 },  // Newport
+  'NP20': { lat: 51.590, lng: -2.990 },  // Newport
+  'NP18': { lat: 51.610, lng: -3.000 },  // Caerleon
+  'NP44': { lat: 51.660, lng: -3.020 },  // Cwmbran
+  'NP26': { lat: 51.590, lng: -2.770 },  // Caldicot
+  // Extra Cardiff areas
+  'CF1':  { lat: 51.480, lng: -3.178 },  // Central
+  'CF2':  { lat: 51.505, lng: -3.175 },  // Heath
+  'CF6':  { lat: 51.420, lng: -3.280 },  // Vale of Glamorgan
+  'CF7':  { lat: 51.520, lng: -3.340 },  // Pontyclun area
+};
+
+// Calculate road distance from restaurant to a postcode centroid
+const calculateRoadDistance = (outwardCode: string): number | null => {
+  const centroid = cardiffPostcodeCentroids[outwardCode];
+  if (!centroid) return null;
+  const straightLine = haversineDistanceMiles(RESTAURANT_LAT, RESTAURANT_LNG, centroid.lat, centroid.lng);
+  return Math.round(straightLine * ROAD_FACTOR * 10) / 10; // Round to 1 decimal
+};
+
+// Backward-compatible export: computed distances from centroids
+export const cardiffPostcodeDistances: Record<string, number> = Object.fromEntries(
+  Object.keys(cardiffPostcodeCentroids).map(code => [code, calculateRoadDistance(code)!])
+);
 
 export const getDeliveryCharge = (miles: number): number => {
   // £2 for first 3 miles, then £0.50 per additional mile
@@ -114,30 +143,23 @@ export const getDeliveryCharge = (miles: number): number => {
 export const getDistanceFromPostcode = (postcode: string): { distance: number | null; outwardCode: string | null } => {
   const cleanPostcode = postcode.toUpperCase().replace(/\s/g, '');
   
-  // Try to extract outward code - UK postcodes like CF5 5AS become CF55AS without space
-  // We need to try both 2-digit (CF10) and 1-digit (CF5) matches and pick the one in our table
-  const match2 = cleanPostcode.match(/^([A-Z]{1,2}\d{2})/); // e.g., CF10, NP20
-  const match1 = cleanPostcode.match(/^([A-Z]{1,2}\d)/);    // e.g., CF5, NP1
+  const match2 = cleanPostcode.match(/^([A-Z]{1,2}\d{2})/);
+  const match1 = cleanPostcode.match(/^([A-Z]{1,2}\d)/);
   
   let outwardCode: string | null = null;
   
-  // First check if 2-digit match exists in our lookup table
-  if (match2 && cardiffPostcodeDistances[match2[1]] !== undefined) {
+  if (match2 && cardiffPostcodeCentroids[match2[1]]) {
     outwardCode = match2[1];
-  } 
-  // Then try 1-digit match
-  else if (match1 && cardiffPostcodeDistances[match1[1]] !== undefined) {
+  } else if (match1 && cardiffPostcodeCentroids[match1[1]]) {
     outwardCode = match1[1];
-  }
-  // If neither found in table, use whichever matched (will return null distance)
-  else if (match2) {
+  } else if (match2) {
     outwardCode = match2[1];
   } else if (match1) {
     outwardCode = match1[1];
   }
   
   if (!outwardCode) return { distance: null, outwardCode: null };
-  const distance = cardiffPostcodeDistances[outwardCode] ?? null;
+  const distance = calculateRoadDistance(outwardCode);
   return { distance, outwardCode };
 };
 
