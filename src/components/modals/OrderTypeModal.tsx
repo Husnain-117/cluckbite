@@ -8,58 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
-// Restaurant location: 1 Cowbridge Road West, Ely Cardiff
-const RESTAURANT_LAT = 51.4866;
-const RESTAURANT_LNG = -3.2454;
-
-// UK postcodes for distance calculation (approximate miles from Cardiff Ely)
-const cardiffPostcodeDistances: Record<string, number> = {
-  'CF5': 1.5, // Ely, Caerau - very close
-  'CF11': 2.5, // Canton, Pontcanna
-  'CF14': 3.5, // Whitchurch, Heath
-  'CF10': 3, // City Centre
-  'CF24': 3.5, // Roath, Plasnewydd
-  'CF23': 4.5, // Pontprennau, Pentwyn
-  'CF3': 5, // Rumney, St Mellons
-  'CF15': 5, // Radyr, Tongwynlais
-  'CF64': 6, // Penarth, Dinas Powys
-  'CF62': 7, // Barry
-  'CF63': 7.5, // Barry
-  'CF71': 8, // Cowbridge area
-  'CF83': 7, // Caerphilly
-  'CF82': 8, // Rhymney
-  'CF37': 10, // Pontypridd
-  'CF38': 9, // Llantrisant
-  'CF72': 6, // Miskin, Talbot Green
-  'CF35': 12, // Bridgend area
-  'CF31': 15, // Bridgend
-  'CF32': 14, // Bridgend
-  'CF33': 16, // Bridgend
-  'CF34': 17, // Maesteg
-  'CF39': 12, // Tonypandy
-  'CF40': 11, // Treorchy
-  'CF41': 13, // Mountain Ash
-  'CF42': 14, // Aberdare area
-  'CF43': 15, // Ferndale
-  'CF44': 16, // Aberdare
-  'CF45': 17, // Mountain Ash
-  'CF46': 10, // Treharris
-  'CF47': 14, // Merthyr Tydfil
-  'CF48': 15, // Merthyr Tydfil
-  'NP10': 8, // Newport area
-  'NP20': 12, // Newport
-  'NP19': 11, // Newport
-  'NP18': 9, // Caerleon
-  'NP44': 10, // Cwmbran
-};
-
-// Delivery charge tiers in miles (GBP)
-const getDeliveryCharge = (miles: number): number => {
-  // £2 for first 3 miles, then £0.50 per additional mile
-  if (miles <= 3) return 2.00;
-  return 2.00 + Math.ceil(miles - 3) * 0.50;
-};
+import { getDistanceFromPostcode as getDistanceUtil, getDeliveryCharge } from '@/hooks/useRestaurantSettings';
 
 interface OrderTypeModalProps {
   isOpen: boolean;
@@ -83,24 +32,8 @@ const OrderTypeModal = ({ isOpen, onClose }: OrderTypeModalProps) => {
   };
 
   const getDistanceFromPostcode = (postcode: string): number | null => {
-    const cleanPostcode = postcode.toUpperCase().replace(/\s/g, '');
-    // Try both 2-digit (CF10) and 1-digit (CF5) outward code matches
-    const match2 = cleanPostcode.match(/^([A-Z]{1,2}\d{2})/);
-    const match1 = cleanPostcode.match(/^([A-Z]{1,2}\d)/);
-    
-    let outwardCode: string | null = null;
-    if (match2 && cardiffPostcodeDistances[match2[1]] !== undefined) {
-      outwardCode = match2[1];
-    } else if (match1 && cardiffPostcodeDistances[match1[1]] !== undefined) {
-      outwardCode = match1[1];
-    } else if (match2) {
-      outwardCode = match2[1];
-    } else if (match1) {
-      outwardCode = match1[1];
-    }
-    
-    if (!outwardCode) return null;
-    return cardiffPostcodeDistances[outwardCode] || null;
+    const result = getDistanceUtil(postcode);
+    return result.distance;
   };
 
   const handleCalculateDistance = () => {
