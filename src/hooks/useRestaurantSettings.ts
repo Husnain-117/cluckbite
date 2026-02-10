@@ -47,62 +47,62 @@ export interface DailyOrderCounter {
   counter: number;
 }
 
-// Comprehensive UK postcodes with distance from Cardiff Ely (1 Cowbridge Road West) in MILES
+// Comprehensive UK postcodes with ROAD distance from Cardiff Ely (1 Cowbridge Road West, 51.4835°N 3.2326°W) in MILES
 export const cardiffPostcodeDistances: Record<string, number> = {
   // Cardiff City postcodes
-  'CF5': 1.5,   // Ely, Caerau, Fairwater
-  'CF11': 2.5,  // Canton, Riverside
+  'CF5': 0.5,   // Ely, Caerau, Fairwater - restaurant is here
+  'CF11': 2,    // Canton, Riverside
   'CF10': 3,    // City Centre
-  'CF14': 3.5,  // Llandaff, Whitchurch
-  'CF24': 3.5,  // Roath, Adamsdown
-  'CF23': 4.5,  // Penylan, Cyncoed
-  'CF3': 5,     // Rumney, Llanrumney
+  'CF14': 4,    // Llandaff, Whitchurch
+  'CF24': 4,    // Roath, Adamsdown
+  'CF23': 5,    // Penylan, Cyncoed
+  'CF3': 6,     // Rumney, Llanrumney
   'CF15': 5,    // Radyr, Tongwynlais
-  'CF4': 4,     // Creigiau
+  'CF4': 5,     // Creigiau
   // Vale of Glamorgan
-  'CF64': 6,    // Penarth
-  'CF62': 7,    // Barry
-  'CF63': 7.5,  // Barry
-  'CF61': 8,    // Llantwit Major
-  'CF71': 8,    // Cowbridge
+  'CF64': 5,    // Penarth
+  'CF62': 10,   // Barry
+  'CF63': 10,   // Barry
+  'CF61': 15,   // Llantwit Major
+  'CF71': 12,   // Cowbridge
   // Caerphilly
-  'CF83': 7,    // Caerphilly
-  'CF82': 8,    // Ystrad Mynach
-  'CF81': 10,   // Bargoed
+  'CF83': 9,    // Caerphilly
+  'CF82': 13,   // Ystrad Mynach
+  'CF81': 17,   // Bargoed
   // Rhondda Cynon Taf
-  'CF37': 10,   // Pontypridd
+  'CF37': 12,   // Pontypridd
   'CF38': 9,    // Church Village
-  'CF72': 6,    // Llantrisant
-  'CF35': 12,   // Bridgend area
+  'CF72': 8,    // Llantrisant
+  'CF35': 16,   // Pencoed area
   // Bridgend
-  'CF31': 15,   // Bridgend
-  'CF32': 14,   // Tondu
-  'CF33': 16,   // Pyle
-  'CF34': 17,   // Maesteg
-  'CF36': 16,   // Porthcawl
+  'CF31': 20,   // Bridgend
+  'CF32': 18,   // Tondu
+  'CF33': 21,   // Pyle
+  'CF34': 20,   // Maesteg
+  'CF36': 22,   // Porthcawl
   // Rhondda
-  'CF39': 12,   // Porth
-  'CF40': 11,   // Tonypandy
-  'CF41': 13,   // Pentre
-  'CF42': 14,   // Treorchy
-  'CF43': 15,   // Ferndale
-  'CF44': 16,   // Aberdare
-  'CF45': 17,   // Mountain Ash
-  'CF46': 10,   // Treharris
-  'CF47': 14,   // Merthyr Tydfil
-  'CF48': 15,   // Merthyr Tydfil
+  'CF39': 15,   // Porth
+  'CF40': 16,   // Tonypandy
+  'CF41': 17,   // Pentre
+  'CF42': 19,   // Treorchy
+  'CF43': 16,   // Ferndale
+  'CF44': 20,   // Aberdare
+  'CF45': 15,   // Mountain Ash
+  'CF46': 14,   // Treharris
+  'CF47': 22,   // Merthyr Tydfil
+  'CF48': 23,   // Merthyr Tydfil
   // Newport
-  'NP10': 8,    // Rogerstone
-  'NP19': 11,   // Newport
-  'NP20': 12,   // Newport
-  'NP18': 9,    // Caerleon
-  'NP44': 10,   // Cwmbran
-  'NP26': 14,   // Caldicot
+  'NP10': 12,   // Rogerstone
+  'NP19': 15,   // Newport
+  'NP20': 15,   // Newport
+  'NP18': 14,   // Caerleon
+  'NP44': 18,   // Cwmbran
+  'NP26': 25,   // Caldicot
   // Extra Cardiff areas
   'CF1': 3,     // Central
   'CF2': 4,     // Heath
-  'CF6': 8,     // Vale of Glamorgan
-  'CF7': 6,     // Pontyclun area
+  'CF6': 10,    // Vale of Glamorgan
+  'CF7': 8,     // Pontyclun area
 };
 
 export const getDeliveryCharge = (miles: number): number => {
