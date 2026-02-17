@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Bell, Check, X, Clock, ShoppingCart, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -58,29 +58,7 @@ const AdminNotifications = ({ onClose }: AdminNotificationsProps) => {
     },
   });
 
-  // Real-time subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel('admin-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: 'recipient_role=eq.admin',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
-          queryClient.invalidateQueries({ queryKey: ['admin-unread-notifications'] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
+  // Real-time subscription handled by useNotificationSound in AdminLayout
 
   const getNotificationIcon = (type: string | null) => {
     switch (type) {

@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import ManagerNotifications from './ManagerNotifications';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 interface ManagerLayoutProps {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ const ManagerLayout = ({ children, activeTab, onTabChange }: ManagerLayoutProps)
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  useNotificationSound('manager');
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['unread-notifications'],

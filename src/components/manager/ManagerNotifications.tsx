@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, Check, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -59,32 +59,7 @@ const ManagerNotifications = ({ onClose }: ManagerNotificationsProps) => {
     },
   });
 
-  // Real-time subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel('manager-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: 'recipient_role=eq.manager',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['manager-notifications'] });
-          queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
-          // Play notification sound
-          const audio = new Audio('/notification.mp3');
-          audio.play().catch(() => {});
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
+  // Real-time subscription handled by useNotificationSound in ManagerLayout
 
   return (
     <div className="absolute right-0 top-12 w-96 bg-card border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in">
