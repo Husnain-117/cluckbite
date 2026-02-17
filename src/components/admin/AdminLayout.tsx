@@ -21,6 +21,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import AdminNotifications from './AdminNotifications';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -44,6 +45,7 @@ const sidebarItems = [
 const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutProps) => {
   const { user, signOut } = useAdminAuth();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  useNotificationSound('admin');
 
   const { data: unreadCount } = useQuery({
     queryKey: ['admin-unread-notifications'],
