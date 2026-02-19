@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ArrowRight, MapPin, Clock, Star } from 'lucide-react';
+import { ArrowRight, Clock, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import OrderTypeModal from '@/components/modals/OrderTypeModal';
-import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { useRestaurantSettings, isRestaurantOpen } from '@/hooks/useRestaurantSettings';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,6 +13,11 @@ const HeroSection = () => {
   const deliverySettings = settings?.deliverySettings;
   const deliveryTimeMin = deliverySettings?.delivery_time_min || 30;
   const deliveryTimeMax = deliverySettings?.delivery_time_max || 40;
+
+  // Determine open/closed from real settings
+  const { isOpen, message: closedMessage } = settings
+    ? isRestaurantOpen(settings.operatingHours, settings.emergencyClosure)
+    : { isOpen: true, message: '' };
 
   // Fetch a featured item with image for hero
   const { data: featuredItem } = useQuery({
@@ -29,6 +34,21 @@ const HeroSection = () => {
       if (error || !data || data.length === 0) return null;
       return data[0];
     },
+  });
+
+  // Fetch real average rating from approved reviews
+  const { data: ratingData } = useQuery({
+    queryKey: ['hero-rating'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('is_approved', true);
+      if (error || !data || data.length === 0) return null;
+      const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
+      return { avg: avg.toFixed(1), count: data.length };
+    },
+    staleTime: 1000 * 60 * 5,
   });
 
   const scrollToMenu = () => {
@@ -52,9 +72,15 @@ const HeroSection = () => {
           {/* Text Content */}
           <div className="flex-1 text-center lg:text-left">
             {/* Status badge */}
-            <div className="inline-flex items-center gap-2 bg-card rounded-full px-4 py-2 mb-8 border border-border">
-              <span className="w-2 h-2 bg-green-500 rounded-full" />
-              <span className="text-sm text-muted-foreground">Open for Orders</span>
+            <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 mb-8 border ${
+              isOpen
+                ? 'bg-card border-border'
+                : 'bg-destructive/10 border-destructive/30'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-500' : 'bg-destructive'}`} />
+              <span className="text-sm text-muted-foreground">
+                {isOpen ? 'Open for Orders' : (closedMessage || 'Currently Closed')}
+              </span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading font-bold mb-6 leading-tight tracking-tight">
@@ -70,12 +96,16 @@ const HeroSection = () => {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-10">
               <Button 
-                onClick={() => setIsModalOpen(true)} 
+                onClick={() => isOpen && setIsModalOpen(true)} 
                 size="lg"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 h-12 text-base"
+                disabled={!isOpen}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Order Now
-                <ArrowRight className="ml-2 h-5 w-5" />
+                {isOpen ? (
+                  <>Order Now <ArrowRight className="ml-2 h-5 w-5" /></>
+                ) : (
+                  'Currently Closed'
+                )}
               </Button>
               <Button 
                 variant="outline" 
@@ -93,14 +123,12 @@ const HeroSection = () => {
                 <Clock className="h-4 w-4 text-primary" />
                 <span>{deliveryTimeMin}-{deliveryTimeMax} min delivery</span>
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                <span>Free delivery over £20</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-secondary fill-secondary" />
-                <span>4.9 rating</span>
-              </div>
+              {ratingData && (
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-secondary fill-secondary" />
+                  <span>{ratingData.avg} rating ({ratingData.count} {ratingData.count === 1 ? 'review' : 'reviews'})</span>
+                </div>
+              )}
             </div>
           </div>
 
