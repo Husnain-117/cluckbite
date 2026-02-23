@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const RECIPIENT_EMAIL = "cluckbite1@gmail.com";
+const RECIPIENT_EMAIL = "husnainakram525@gmail.com";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -74,7 +74,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Cluck Bite <notifications@resend.dev>',
+          from: 'Cluck Bite <onboarding@resend.dev>',
           to: [RECIPIENT_EMAIL],
           subject,
           html: htmlBody,
