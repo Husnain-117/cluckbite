@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,9 +14,12 @@ serve(async (req) => {
 
   try {
     const payload = await req.json();
+    console.log('Received payload:', JSON.stringify(payload));
+    
     const record = payload.record;
 
     if (!record) {
+      console.error('No record in payload');
       return new Response(JSON.stringify({ error: 'No record found' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -26,16 +28,6 @@ serve(async (req) => {
 
     const { message, notification_type, recipient_role, order_id } = record;
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    // Use Supabase's built-in email via Auth Admin
-    // We'll use a simple SMTP-less approach: invoke the Resend/SMTP integration
-    // For now, use the Supabase auth.admin to send via the platform's email service
-
-    // Build email content
     const subject = `🔔 Cluck Bite: New ${notification_type?.replace('_', ' ') || 'notification'} (${recipient_role})`;
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -54,57 +46,50 @@ serve(async (req) => {
       </div>
     `;
 
-    // Send email using Supabase's built-in email sending
-    const { error } = await supabase.auth.admin.inviteUserByEmail(RECIPIENT_EMAIL, {
-      data: { notification_only: true },
-      redirectTo: 'https://cluckbite.lovable.app',
-    }).catch(() => ({ error: 'fallback' })) as any;
-
-    // Since inviteUserByEmail is not ideal for notifications, let's use a direct SMTP approach
-    // We'll use the Resend API if available, otherwise log and return success
-    
-    // Try using fetch to send via a simple email API
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     
-    if (RESEND_API_KEY) {
-      const emailRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Cluck Bite <onboarding@resend.dev>',
-          to: [RECIPIENT_EMAIL],
-          subject,
-          html: htmlBody,
-        }),
+    if (!RESEND_API_KEY) {
+      console.error('RESEND_API_KEY is not configured');
+      return new Response(JSON.stringify({ error: 'RESEND_API_KEY not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-
-      if (!emailRes.ok) {
-        const errText = await emailRes.text();
-        console.error('Email send failed:', errText);
-        return new Response(JSON.stringify({ error: 'Email send failed', details: errText }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const emailData = await emailRes.json();
-      console.log('Email sent successfully:', emailData);
-    } else {
-      // Use Lovable AI gateway to compose and log - or just log
-      console.log('No RESEND_API_KEY configured. Email would be sent to:', RECIPIENT_EMAIL);
-      console.log('Subject:', subject);
-      console.log('Message:', message);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    console.log('Sending email to:', RECIPIENT_EMAIL);
+    
+    const emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Cluck Bite <onboarding@resend.dev>',
+        to: [RECIPIENT_EMAIL],
+        subject,
+        html: htmlBody,
+      }),
+    });
+
+    const emailData = await emailRes.json();
+    
+    if (!emailRes.ok) {
+      console.error('Resend API error:', JSON.stringify(emailData));
+      return new Response(JSON.stringify({ error: 'Email send failed', details: emailData }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Email sent successfully:', JSON.stringify(emailData));
+
+    return new Response(JSON.stringify({ success: true, emailId: emailData.id }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in send-notification-email:', error);
+    console.error('Error in send-notification-email:', error.message, error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
